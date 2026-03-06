@@ -1,4 +1,4 @@
-import * as cheerio from "cheerio";
+// Cheerio removed for performance reasons (CPU limit)
 
 export interface TimeSlot {
   day: number;
@@ -141,18 +141,18 @@ export class IIUMScraper {
     this.updateCookies(initRes.headers.get("set-cookie"));
 
     const initHtml = await initRes.text();
-    const $init = cheerio.load(initHtml);
-    const execution = $init('input[name="execution"]').attr("value");
-    if (!execution) throw new Error("Failed to get execution token");
+    const executionMatch = initHtml.match(/name="execution"\s+value="([^"]+)"/);
+    if (!executionMatch) throw new Error("Failed to get execution token");
+    const execution = executionMatch[1];
 
     // 2. Login
     const loginBody = new URLSearchParams();
-    loginBody.append("username", studentId);
-    loginBody.append("password", password);
-    loginBody.append("execution", execution);
-    loginBody.append("_eventId", "submit");
-    loginBody.append("geolocation", "");
-    loginBody.append("submit", "LOGIN");
+    loginBody.set("username", studentId);
+    loginBody.set("password", password);
+    loginBody.set("execution", execution);
+    loginBody.set("_eventId", "submit");
+    loginBody.set("geolocation", "");
+    loginBody.set("submit", "LOGIN");
 
     const loginRes = await fetch(casUrl, {
       method: "POST",
@@ -186,43 +186,65 @@ export class IIUMScraper {
       headers: { "User-Agent": this.userAgent, Cookie: this.getCookieHeader() },
     });
     const mainScheduleHtml = await mainScheduleRes.text();
-    const $main = cheerio.load(mainScheduleHtml);
 
-    const semesterLinks = $main("ul.dropdown-menu li a[href*='?ses=']")
-      .map((_, el) => {
-        const href = $main(el).attr("href") || "";
-        const url = new URL(href, scheduleUrl);
-        return {
-          ses: url.searchParams.get("ses"),
-          sem: url.searchParams.get("sem"),
-          title: $main(el).text().trim(),
-        };
-      })
-      .get() as { ses: string | null; sem: string | null; title: string }[];
+    // Debug: Find all links with 'ses='
+    const allLinksRegex =
+      /<a[^>]+href="([^"]*?ses=[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+    let linkMatch;
+    // Use Regex to find semester links
+    // These are relative links like ?ses=2025/2026&sem=2
+    const semesterRegex =
+      /<a[^>]+href="(\?ses=([^&]+)&sem=([^"]+))"[^>]*>([\s\S]*?)<\/a>/g;
+    const semesterLinks: { ses: string; sem: string; title: string }[] = [];
+    let match;
+    while ((match = semesterRegex.exec(mainScheduleHtml)) !== null) {
+      const title = this.decodeHtml(
+        match[4]
+          .replace(/<[^>]*>/g, "")
+          .trim()
+          .replace(/\s+/g, " "),
+      );
+      semesterLinks.push({
+        ses: match[2],
+        sem: match[3],
+        title,
+      });
+    }
 
     const calendars: SemesterCalendar[] = [];
     const seenSems = new Set<string>();
 
-    // Process current page first (the one we already fetched)
-    const currentTitle = $main("h3")
-      .text()
-      .trim()
-      .toLowerCase()
-      .includes("schedule")
-      ? $main("h3").text().trim().replace("Schedule", "").trim()
+    // Process current page first (already fetched)
+    const titleMatch = mainScheduleHtml.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i);
+    const currentTitleRaw = titleMatch
+      ? this.decodeHtml(
+          titleMatch[1]
+            .replace(/<[^>]*>/g, "")
+            .replace(/Schedule/i, "")
+            .trim()
+            .replace(/\s+/g, " "),
+        )
       : null;
 
-    if (currentTitle) {
+    // Normalize currentTitle for comparison
+    const currentTitleNorm = currentTitleRaw?.toLowerCase() || "";
+
+    if (currentTitleRaw) {
       calendars.push({
-        title: currentTitle,
+        title: currentTitleRaw,
         schedules: this.parseScheduleTable(mainScheduleHtml),
       });
-      seenSems.add(currentTitle);
+      seenSems.add(currentTitleNorm);
     }
 
-    // Concurrent fetching for all other semesters
-    // We take inspiration from gomaluum's concurrent approach but adapted for JS Promises
-    const otherSems = semesterLinks.filter((sem) => !seenSems.has(sem.title));
+    // Concurrent fetching for other semesters
+    // Ignore the one we just processed
+    const otherSems = semesterLinks.filter((sem) => {
+      const norm = sem.title.toLowerCase();
+      if (seenSems.has(norm)) return false;
+      seenSems.add(norm); // Avoid duplicate links in dropdown
+      return true;
+    });
 
     const fetchPromises = otherSems.map(async (sem) => {
       const semUrl = `https://imaluum.iium.edu.my/MyAcademic/schedule?ses=${sem.ses}&sem=${sem.sem}`;
@@ -242,36 +264,77 @@ export class IIUMScraper {
     const results = await Promise.all(fetchPromises);
     calendars.push(...results);
 
-    // Sort calendars numerically/chronologically if possible, or just return as is
     return calendars;
   }
 
+  private decodeHtml(html: string): string {
+    if (!html.includes("&")) return html;
+    return html.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (match, entity) => {
+      switch (entity) {
+        case "amp":
+          return "&";
+        case "lt":
+          return "<";
+        case "gt":
+          return ">";
+        case "quot":
+          return '"';
+        case "#39":
+          return "'";
+        case "nbsp":
+          return " ";
+        default:
+          return match;
+      }
+    });
+  }
+
   private parseScheduleTable(html: string): Schedule[] {
-    const $ = cheerio.load(html);
     const schedules: Schedule[] = [];
-    const table = $("table.table-hover");
+    // Efficiently target the schedule table body
+    const tableBodyMatch = html.match(
+      /<table[^>]*class="[^"]*table-hover[^"]*"[^>]*>([\s\S]*?)<\/table>/,
+    );
+    if (!tableBodyMatch) return [];
 
-    table.find("tbody tr, tr").each((_, tr) => {
-      const tds = $(tr).find("td");
-      if (tds.length === 0) return; // Header or empty row
+    const tableBody = tableBodyMatch[1];
+    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
+    const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
 
-      // New course row (9 columns)
-      if (tds.length === 9) {
-        const code = $(tds[0]).text().trim();
-        const title = $(tds[1]).text().trim();
-        const sect = parseInt($(tds[2]).text().trim());
-        const chr = parseFloat($(tds[3]).text().trim());
-        const dayStr = $(tds[5]).text().trim();
-        const timeStr = $(tds[6]).text().trim();
-        const venue = $(tds[7]).text().trim();
-        const lecturer = $(tds[8]).text().trim();
+    let rowMatch;
+    while ((rowMatch = rowRegex.exec(tableBody)) !== null) {
+      const cells: string[] = [];
+      let cellMatch;
+      const rowHtml = rowMatch[1];
+      while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
+        // Strip HTML tags and entities
+        cells.push(
+          this.decodeHtml(cellMatch[1].replace(/<[^>]*>/g, "").trim()),
+        );
+      }
+
+      if (cells.length === 0) continue;
+
+      if (cells.length === 9) {
+        const [
+          code,
+          title,
+          sectStr,
+          chrStr,
+          _campus,
+          dayStr,
+          timeStr,
+          venue,
+          lecturer,
+        ] = cells;
+        const sect = parseInt(sectStr);
+        const chr = parseFloat(chrStr);
 
         const timeSlots: TimeSlot[] = [];
         if (dayStr && timeStr && timeStr.includes("-")) {
           const [start, end] = timeStr.split("-").map((t) => t.trim());
           if (start && end) {
-            const days = this.mapDays(dayStr);
-            days.forEach((day) => {
+            this.mapDays(dayStr).forEach((day) => {
               timeSlots.push({
                 day,
                 start: this.parseTime(start),
@@ -290,22 +353,16 @@ export class IIUMScraper {
           location: venue || null,
           timeSlots,
         });
-      }
-      // Additional time slots for the previous course (4 columns)
-      // This happens when a course has multiple venues or days (rowspan)
-      else if (tds.length === 4 && schedules.length > 0) {
-        const lastSchedule = schedules[schedules.length - 1];
-        const dayStr = $(tds[0]).text().trim();
-        const timeStr = $(tds[1]).text().trim();
-        const venue = $(tds[2]).text().trim();
-        const lecturer = $(tds[3]).text().trim();
+      } else if (cells.length === 4 && schedules.length > 0) {
+        // Additional slot for existing course
+        const [dayStr, timeStr, venue, lecturer] = cells;
+        const last = schedules[schedules.length - 1];
 
         if (dayStr && timeStr && timeStr.includes("-")) {
           const [start, end] = timeStr.split("-").map((t) => t.trim());
           if (start && end) {
-            const days = this.mapDays(dayStr);
-            days.forEach((day) => {
-              lastSchedule.timeSlots.push({
+            this.mapDays(dayStr).forEach((day) => {
+              last.timeSlots.push({
                 day,
                 start: this.parseTime(start),
                 end: this.parseTime(end),
@@ -314,29 +371,21 @@ export class IIUMScraper {
           }
         }
 
-        // Handle venue and lecturer updates for subsequent rows
-        if (
-          venue &&
-          lastSchedule.location &&
-          !lastSchedule.location.includes(venue)
-        ) {
-          lastSchedule.location += `, ${venue}`;
-        } else if (venue && !lastSchedule.location) {
-          lastSchedule.location = venue;
+        if (venue && last.location && !last.location.includes(venue)) {
+          last.location += `, ${venue}`;
+        } else if (venue && !last.location) {
+          last.location = venue;
         }
 
         if (lecturer && lecturer !== "TO BE DETERMINED") {
-          if (
-            lastSchedule.instructor &&
-            !lastSchedule.instructor.includes(lecturer)
-          ) {
-            lastSchedule.instructor += `, ${lecturer}`;
-          } else if (!lastSchedule.instructor) {
-            lastSchedule.instructor = lecturer;
+          if (last.instructor && !last.instructor.includes(lecturer)) {
+            last.instructor += `, ${lecturer}`;
+          } else if (!last.instructor) {
+            last.instructor = lecturer;
           }
         }
       }
-    });
+    }
 
     return schedules;
   }
