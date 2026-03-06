@@ -77,7 +77,11 @@ export class IIUMScraper {
       MTWTHF: ["M", "T", "W", "TH", "F"],
     };
 
-    const cleaned = dayStr.trim().toUpperCase().replace(/\s+/g, "");
+    const cleaned = dayStr
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, "")
+      .replace(/\([^)]*\)/g, ""); // Strip parenthetical suffixes like (T) for tutorials
 
     // Check for predefined combinations first
     if (comboMap[cleaned]) {
@@ -87,18 +91,23 @@ export class IIUMScraper {
     // Handle formats like "M-W", "MON-WED", "M,W", or "MON,WED"
     // The user notes "M-W" is Monday AND Wednesday, not a range.
     const separators = /[-,\s/]+/;
-    const parts = dayStr
-      .split(separators)
-      .map((p) => p.trim().toUpperCase())
-      .filter((p) => p.length > 0);
+    const parts = cleaned.split(separators).filter((p) => p.length > 0);
 
-    // If it's a single string like "MW", we should also handle it char by char if they are single letters
+    // If it's a single string like "MW", parse char-by-char with TH digraph support
     if (parts.length === 1 && parts[0].length > 1 && !dayMap[parts[0]]) {
-      const chars = parts[0].split("");
+      const str = parts[0];
       const result: number[] = [];
-      for (const char of chars) {
-        if (dayMap[char] !== undefined) {
-          result.push(dayMap[char]);
+      let i = 0;
+      while (i < str.length) {
+        // Check two-char "TH" digraph first (Thursday)
+        if (i + 1 < str.length && str[i] === "T" && str[i + 1] === "H") {
+          result.push(dayMap["TH"]); // 4 = Thursday
+          i += 2;
+        } else if (dayMap[str[i]] !== undefined) {
+          result.push(dayMap[str[i]]);
+          i++;
+        } else {
+          i++; // skip unknown chars
         }
       }
       return result;
