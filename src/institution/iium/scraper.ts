@@ -255,30 +255,43 @@ export class IIUMScraper {
       return true;
     });
 
-    const fetchPromises = otherSems.map(async (sem) => {
-      const semUrl = `https://imaluum.iium.edu.my/MyAcademic/schedule?ses=${sem.ses}&sem=${sem.sem}`;
-      const res = await fetch(semUrl, {
-        headers: {
-          "User-Agent": this.userAgent,
-          Cookie: this.getCookieHeader(),
-        },
-      });
-      const html = await res.text();
-      return {
-        title: sem.title,
-        schedules: this.parseScheduleTable(html),
-      };
+    // Concurrent fetching with micro-delays to avoid rate-limiting or server connection drops
+    const fetchPromises = otherSems.map(async (sem, index) => {
+      // Stagger requests by 500ms each
+      await new Promise((resolve) => setTimeout(resolve, index * 50));
+
+      try {
+        const semUrl = `https://imaluum.iium.edu.my/MyAcademic/schedule?ses=${sem.ses}&sem=${sem.sem}`;
+        const res = await fetch(semUrl, {
+          headers: {
+            "User-Agent": this.userAgent,
+            Cookie: this.getCookieHeader(),
+          },
+        });
+        const html = await res.text();
+        return {
+          title: sem.title,
+          schedules: this.parseScheduleTable(html),
+        };
+      } catch (err) {
+        console.error(`Failed to fetch schedule for ${sem.title}:`, err);
+        return null;
+      }
     });
 
     const results = await Promise.all(fetchPromises);
-    calendars.push(...results);
+    for (const result of results) {
+      if (result) {
+        calendars.push(result);
+      }
+    }
 
     return calendars;
   }
 
   private decodeHtml(html: string): string {
     if (!html.includes("&")) return html;
-    return html.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (match, entity) => {
+    return html.replace(/&(amp|lt|gt|quot|#0?39|nbsp);/g, (match, entity) => {
       switch (entity) {
         case "amp":
           return "&";
@@ -289,6 +302,7 @@ export class IIUMScraper {
         case "quot":
           return '"';
         case "#39":
+        case "#039":
           return "'";
         case "nbsp":
           return " ";
@@ -300,13 +314,25 @@ export class IIUMScraper {
 
   private parseScheduleTable(html: string): Schedule[] {
     const schedules: Schedule[] = [];
+
     // Efficiently target the schedule table body
-    const tableBodyMatch = html.match(
+    // Fallback to searching all tables if table-hover class is modified or missing
+    let tableBodyMatch = html.match(
       /<table[^>]*class="[^"]*table-hover[^"]*"[^>]*>([\s\S]*?)<\/table>/,
     );
-    if (!tableBodyMatch) return [];
 
-    const tableBody = tableBodyMatch[1];
+    let tableBody = tableBodyMatch ? tableBodyMatch[1] : "";
+    if (!tableBody) {
+      const allTables = html.match(/<table[^>]*>([\s\S]*?)<\/table>/g) || [];
+      for (const tbl of allTables) {
+        if (tbl.includes("Code") && tbl.includes("Lecturer")) {
+          tableBody = tbl;
+          break;
+        }
+      }
+    }
+
+    if (!tableBody) return [];
     const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
     const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
 
@@ -316,9 +342,14 @@ export class IIUMScraper {
       let cellMatch;
       const rowHtml = rowMatch[1];
       while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-        // Strip HTML tags and entities
+        // Strip HTML tags, entities, and collapse multiple whitespaces
         cells.push(
-          this.decodeHtml(cellMatch[1].replace(/<[^>]*>/g, "").trim()),
+          this.decodeHtml(
+            cellMatch[1]
+              .replace(/<[^>]*>/g, "")
+              .replace(/\s+/g, " ")
+              .trim(),
+          ),
         );
       }
 
