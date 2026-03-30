@@ -46,20 +46,37 @@ export class UiTMScraper {
     const apiKey = "AIzaSyCzaZT_qsgrbWBmtFJ0Sg3I-eJbZtntbpM";
     const authUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
 
-    // We add @mystudent.uitm.edu.my to simulate valid email
-    const email = `${studentId}@mystudent.uitm.edu.my`;
+    // Students may use different email domains, or provide their full email
+    let emailsToTry: string[] = [];
+    
+    if (studentId.includes("@")) {
+      emailsToTry.push(studentId);
+      // Extract just the ID part to use for the CDN fetch later
+      studentId = studentId.split("@")[0];
+    } else {
+      const domains = ["@mystudent.uitm.edu.my", "@siswa.uitm.edu.my", "@student.uitm.edu.my"];
+      emailsToTry = domains.map(domain => `${studentId}${domain}`);
+    }
 
-    const authRes = await fetch(authUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        returnSecureToken: true,
-        email,
-        password,
-      }),
-    });
+    let authRes: Response | null = null;
+    
+    for (const email of emailsToTry) {
+      authRes = await fetch(authUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          returnSecureToken: true,
+          email,
+          password,
+        }),
+      });
 
-    if (!authRes.ok) {
+      if (authRes.ok) {
+        break; // Stop trying if we have a successful login
+      }
+    }
+
+    if (!authRes || !authRes.ok) {
       throw new Error(
         "Login failed: Invalid credentials. Please check your Student ID and Password.",
       );
