@@ -1,6 +1,6 @@
 # Contributing to fyutr-connect
 
-Thank you for your interest in contributing to **fyutr-connect**! This project provides schedule integrations for Malaysian universities, powering the [Fyutr](https://fyutr.app) student timetable app.
+Thank you for your interest in contributing to **fyutr-connect**! This project provides schedule integrations for Malaysian universities, powering the [Fyutr](https://fyutr.app/download) student timetable app.
 
 ---
 
