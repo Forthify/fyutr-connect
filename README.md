@@ -1,6 +1,6 @@
 # fyutr-connect
 
-**fyutr-connect** is the open-source integration layer that powers schedule scraping for [Fyutr](https://fyutr.app) — a timetable app for Malaysian university students.
+**fyutr-connect** is the open-source integration layer that powers schedule scraping for [Fyutr](https://fyutr.app/download) — a timetable app for Malaysian university students.
 
 This API is built on [Hono](https://hono.dev) and deployed on [Cloudflare Workers](https://workers.cloudflare.com). All scrapers use native `fetch()` and regular expressions — no third-party parsing libraries — to stay within Workers' CPU limits.
 
