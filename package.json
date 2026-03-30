@@ -1,5 +1,5 @@
 {
-  "name": "fyutr-integrations",
+  "name": "fyutr-connect",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
