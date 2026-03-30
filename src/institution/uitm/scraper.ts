@@ -63,7 +63,10 @@ export class UiTMScraper {
     for (const email of emailsToTry) {
       authRes = await fetch(authUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Referer": "https://mystudent.uitm.edu.my/",
+        },
         body: JSON.stringify({
           returnSecureToken: true,
           email,
