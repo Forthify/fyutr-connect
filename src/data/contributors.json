@@ -1,0 +1,283 @@
+[
+  {
+    "id": "um",
+    "name": "Universiti Malaya",
+    "shortName": "UM",
+    "contributors": []
+  },
+  {
+    "id": "usm",
+    "name": "Universiti Sains Malaysia",
+    "shortName": "USM",
+    "contributors": []
+  },
+  {
+    "id": "ukm",
+    "name": "Universiti Kebangsaan Malaysia",
+    "shortName": "UKM",
+    "contributors": []
+  },
+  {
+    "id": "upm",
+    "name": "Universiti Putra Malaysia",
+    "shortName": "UPM",
+    "contributors": []
+  },
+  {
+    "id": "utm",
+    "name": "Universiti Teknologi Malaysia",
+    "shortName": "UTM",
+    "contributors": []
+  },
+  {
+    "id": "uitm",
+    "name": "Universiti Teknologi MARA",
+    "shortName": "UiTM",
+    "integration": {
+      "exists": true,
+      "name": "MyStudent",
+      "url": "/institution/uitm"
+    },
+    "contributors": [
+      {
+        "name": "Luqman Malik",
+        "github": "lqmkim",
+        "role": "Author",
+        "avatar": "https://avatars.githubusercontent.com/lqmkim"
+      }
+    ]
+  },
+  {
+    "id": "iium",
+    "name": "International Islamic University Malaysia",
+    "shortName": "IIUM",
+    "integration": {
+      "exists": true,
+      "name": "i-Ma'luum",
+      "url": "/institution/iium"
+    },
+    "contributors": [
+      {
+        "name": "Luqman Malik",
+        "github": "lqmkim",
+        "role": "Author",
+        "avatar": "https://avatars.githubusercontent.com/lqmkim"
+      }
+    ]
+  },
+  {
+    "id": "iic",
+    "name": "International Islamic College",
+    "shortName": "IIC",
+    "integration": {
+      "exists": true,
+      "url": "/institution/iic"
+    },
+    "contributors": [
+      {
+        "name": "Luqman Malik",
+        "github": "lqmkim",
+        "role": "Author",
+        "avatar": "https://avatars.githubusercontent.com/lqmkim"
+      }
+    ]
+  },
+  {
+    "id": "uum",
+    "name": "Universiti Utara Malaysia",
+    "shortName": "UUM",
+    "contributors": []
+  },
+  {
+    "id": "unimas",
+    "name": "Universiti Malaysia Sarawak",
+    "shortName": "UNIMAS",
+    "contributors": []
+  },
+  {
+    "id": "ums",
+    "name": "Universiti Malaysia Sabah",
+    "shortName": "UMS",
+    "contributors": []
+  },
+  {
+    "id": "upsi",
+    "name": "Universiti Pendidikan Sultan Idris",
+    "shortName": "UPSI",
+    "contributors": []
+  },
+  {
+    "id": "usim",
+    "name": "Universiti Sains Islam Malaysia",
+    "shortName": "USIM",
+    "contributors": []
+  },
+  {
+    "id": "umt",
+    "name": "Universiti Malaysia Terengganu",
+    "shortName": "UMT",
+    "contributors": []
+  },
+  {
+    "id": "ump",
+    "name": "Universiti Malaysia Pahang",
+    "shortName": "UMP",
+    "contributors": []
+  },
+  {
+    "id": "unimap",
+    "name": "Universiti Malaysia Perlis",
+    "shortName": "UniMAP",
+    "contributors": []
+  },
+  {
+    "id": "unisza",
+    "name": "Universiti Sultan Zainal Abidin",
+    "shortName": "UniSZA",
+    "contributors": []
+  },
+  {
+    "id": "uthm",
+    "name": "Universiti Tun Hussein Onn Malaysia",
+    "shortName": "UTHM",
+    "contributors": []
+  },
+  {
+    "id": "utem",
+    "name": "Universiti Teknikal Malaysia Melaka",
+    "shortName": "UTeM",
+    "contributors": []
+  },
+  {
+    "id": "umk",
+    "name": "Universiti Malaysia Kelantan",
+    "shortName": "UMK",
+    "contributors": []
+  },
+  {
+    "id": "upnm",
+    "name": "Universiti Pertahanan Nasional Malaysia",
+    "shortName": "UPNM",
+    "contributors": []
+  },
+  {
+    "id": "utar",
+    "name": "Universiti Tunku Abdul Rahman",
+    "shortName": "UTAR",
+    "contributors": []
+  },
+  {
+    "id": "mmu",
+    "name": "Multimedia University",
+    "shortName": "MMU",
+    "contributors": []
+  },
+  {
+    "id": "uniten",
+    "name": "Universiti Tenaga Nasional",
+    "shortName": "UNITEN",
+    "contributors": []
+  },
+  {
+    "id": "utp",
+    "name": "Universiti Teknologi PETRONAS",
+    "shortName": "UTP",
+    "contributors": []
+  },
+  {
+    "id": "sunway",
+    "name": "Sunway University",
+    "shortName": "Sunway",
+    "contributors": []
+  },
+  {
+    "id": "taylors",
+    "name": "Taylor's University",
+    "shortName": "Taylor's",
+    "contributors": []
+  },
+  {
+    "id": "monash",
+    "name": "Monash University Malaysia",
+    "shortName": "Monash",
+    "contributors": []
+  },
+  {
+    "id": "nottingham",
+    "name": "University of Nottingham Malaysia",
+    "shortName": "Nottingham",
+    "contributors": []
+  },
+  {
+    "id": "curtin",
+    "name": "Curtin University Malaysia",
+    "shortName": "Curtin",
+    "contributors": []
+  },
+  {
+    "id": "swinburne",
+    "name": "Swinburne University of Technology Sarawak Campus",
+    "shortName": "Swinburne",
+    "contributors": []
+  },
+  {
+    "id": "ucsi",
+    "name": "UCSI University",
+    "shortName": "UCSI",
+    "contributors": []
+  },
+  {
+    "id": "segi",
+    "name": "SEGi University",
+    "shortName": "SEGi",
+    "contributors": []
+  },
+  {
+    "id": "help",
+    "name": "HELP University",
+    "shortName": "HELP",
+    "contributors": []
+  },
+  {
+    "id": "imu",
+    "name": "International Medical University",
+    "shortName": "IMU",
+    "contributors": []
+  },
+  {
+    "id": "msu",
+    "name": "Management and Science University",
+    "shortName": "MSU",
+    "contributors": []
+  },
+  {
+    "id": "apu",
+    "name": "Asia Pacific University of Technology & Innovation",
+    "shortName": "APU",
+    "contributors": []
+  },
+  {
+    "id": "tar-umt",
+    "name": "Tunku Abdul Rahman University of Management and Technology",
+    "shortName": "TAR UMT",
+    "contributors": []
+  },
+  {
+    "id": "xiamen",
+    "name": "Xiamen University Malaysia",
+    "shortName": "Xiamen",
+    "contributors": []
+  },
+  {
+    "id": "heriot-watt",
+    "name": "Heriot-Watt University Malaysia",
+    "shortName": "Heriot-Watt",
+    "contributors": []
+  },
+  {
+    "id": "reading",
+    "name": "University of Reading Malaysia",
+    "shortName": "Reading",
+    "contributors": []
+  }
+]
