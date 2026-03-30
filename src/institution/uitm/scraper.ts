@@ -42,44 +42,35 @@ export class UiTMScraper {
     studentId: string,
     password: string,
   ): Promise<SemesterCalendar[]> {
-    // 1. Authenticate to ensure valid credentials using the Firebase Web API Key for mystudent.uitm
-    const apiKey = "AIzaSyCzaZT_qsgrbWBmtFJ0Sg3I-eJbZtntbpM";
-    const authUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
-
-    // Students may use different email domains, or provide their full email
-    let emailsToTry: string[] = [];
-    
+    // Normalize studentId to just the UID part if an email was provided
     if (studentId.includes("@")) {
-      emailsToTry.push(studentId);
-      // Extract just the ID part to use for the CDN fetch later
       studentId = studentId.split("@")[0];
-    } else {
-      const domains = ["@mystudent.uitm.edu.my", "@siswa.uitm.edu.my", "@student.uitm.edu.my"];
-      emailsToTry = domains.map(domain => `${studentId}${domain}`);
     }
 
-    let authRes: Response | null = null;
+    // 1. Authenticate to ensure valid credentials using ECR portal fallback
+    // The user provided a specific encrypted URL for authentication.
+    // Valid credentials return a 302 Redirect to 'main.cfm?status=1'.
+    const authUrl = "https://ecr.uitm.edu.my/estudent/ecr/index.cfm?id=1&idEncrypted=18DBBE5DBCBD0A03B6FBD5B1CF0DC38AA5E826F2DF010D2950FD54D6284C891FFD56D4DB5585E4C448F9F7E8A79A15AE7C0D3399B3A284DD1A56E7E35E86CBFF0BFCE6CF89CFFADCA70BCADE97039E240786BD8BBC50B60A01CCD7E8EE58FD17";
     
-    for (const email of emailsToTry) {
-      authRes = await fetch(authUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Referer": "https://mystudent.uitm.edu.my/",
-        },
-        body: JSON.stringify({
-          returnSecureToken: true,
-          email,
-          password,
-        }),
-      });
+    const formData = new URLSearchParams();
+    formData.append("txtUser", studentId);
+    formData.append("txtPass", password);
+    formData.append("btnLogin", ""); // Submit button name
 
-      if (authRes.ok) {
-        break; // Stop trying if we have a successful login
-      }
-    }
+    const authRes = await fetch(authUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+      body: formData.toString(),
+      redirect: "manual",
+    });
 
-    if (!authRes || !authRes.ok) {
+    const location = authRes.headers.get("location");
+    const isSuccess = authRes.status === 302 && location?.includes("main.cfm?status=1");
+
+    if (!isSuccess) {
       throw new Error(
         "Login failed: Invalid credentials. Please check your Student ID and Password.",
       );
