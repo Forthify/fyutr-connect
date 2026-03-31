@@ -114,7 +114,10 @@ export class ApuScraper {
 
     return [
       {
-        title: null, // APU feed doesn't expose semester name
+        title: new Date().toLocaleDateString("en-US", {
+          month: "long",
+          year: "numeric",
+        }), // APU feed doesn't expose semester name
         schedules,
       },
     ];
