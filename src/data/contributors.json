@@ -254,7 +254,14 @@
     "id": "apu",
     "name": "Asia Pacific University of Technology & Innovation",
     "shortName": "APU",
-    "contributors": []
+    "contributors": [
+      {
+        "name": "Toh Xin Yi",
+        "github": "xinyitohh",
+        "role": "author",
+        "avatar": "https://avatars.githubusercontent.com/xinyitohh"
+      }
+    ]
   },
   {
     "id": "tar-umt",
