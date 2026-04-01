@@ -286,5 +286,23 @@
     "name": "University of Reading Malaysia",
     "shortName": "Reading",
     "contributors": []
+  },
+  {
+    "id": "unikl",
+    "name": "Universiti Kuala Lumpur",
+    "shortName": "UniKL",
+    "integration": {
+      "exists": true,
+      "name": "ECITIE",
+      "url": "/institution/unikl"
+    },
+    "contributors": [
+      {
+        "name": "ipan",
+        "github": "YOUR-GITHUB-USERNAME",
+        "role": "Author",
+        "avatar": "https://avatars.githubusercontent.com/YOUR-GITHUB-USERNAME"
+      }
+    ]
   }
 ]
