@@ -1,4 +1,23 @@
-import { SemesterCalendar, Schedule, TimeSlot } from "../../types";
+export interface TimeSlot {
+  day: number;
+  start: string;
+  end: string;
+}
+
+export interface Schedule {
+  code: string;
+  title: string;
+  creditHours: number | null;
+  section: string;
+  instructor: string;
+  location: string;
+  timeSlots: TimeSlot[];
+}
+
+export interface SemesterCalendar {
+  title: string;
+  schedules: Schedule[];
+}
 
 export class UniKLScraper {
   private userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
