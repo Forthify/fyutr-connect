@@ -244,11 +244,29 @@ export class UniKLScraper {
           
           const sched = scheduleMap.get(code)!;
           
-          // Basic logic to merge consecutive time slots gracefully
-          const existingSlot = sched.timeSlots.find(t => t.day === dayIndex && t.end === slot.start && sched.location === location);
+          // Basic logic to merge consecutive/adjacent time slots gracefully (up to 30 minutes gap)
+          const parseTimeMinutes = (timeStr: string) => {
+            const [hours, mins] = timeStr.split(':').map(Number);
+            return hours * 60 + mins;
+          };
+
+          // Find a slot to merge into. They must be on the same day, same location for the same course.
+          // The new slot's start time should be >= the existing slot's start time and <= existing slot's end time + 30 mins
+          const existingSlot = sched.timeSlots.find(t => {
+            if (t.day !== dayIndex || sched.location !== location) return false;
+            const existingEndMins = parseTimeMinutes(t.end);
+            const newStartMins = parseTimeMinutes(slot.start);
+            // Allow merge if it's literally touching or within a 30 minute padding gap
+            return Math.abs(newStartMins - existingEndMins) <= 30 || existingEndMins > newStartMins;
+          });
           
           if (existingSlot) {
-            existingSlot.end = slot.end; // Extend the class duration
+            // Extend the class duration if the new slot ends later
+            const existingEndMins = parseTimeMinutes(existingSlot.end);
+            const newEndMins = parseTimeMinutes(slot.end);
+            if (newEndMins > existingEndMins) {
+              existingSlot.end = slot.end;
+            }
           } else {
             sched.timeSlots.push({
               day: dayIndex,
