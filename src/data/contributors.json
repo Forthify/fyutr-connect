@@ -27,7 +27,18 @@
     "id": "utm",
     "name": "Universiti Teknologi Malaysia",
     "shortName": "UTM",
-    "contributors": []
+    "integration": {
+      "exists": true,
+      "name": "Student Portal",
+      "url": "/institution/utm"
+    },
+    "contributors": [
+      {
+        "name": "Arif Emrullah",
+        "github": "eemrull",
+        "avatar": "https://github.com/eemrull.png"
+      }
+    ]
   },
   {
     "id": "uitm",
