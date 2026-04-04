@@ -7,7 +7,7 @@ const uitmRoute = new Hono();
 
 const loginSchema = z.object({
   studentId: z.string().min(1, "Student ID is required"),
-  password: z.string().min(1, "Password is required"),
+  password: z.string().optional(),
 });
 
 uitmRoute.post("/", async (c) => {
@@ -29,7 +29,7 @@ uitmRoute.post("/", async (c) => {
     const scraper = new UiTMScraper();
 
     try {
-      const calendars = await scraper.scrape(studentId, password);
+      const calendars = await scraper.scrape(studentId, password as string);
       return success(c, { calendars });
     } catch (error: any) {
       if (error.message.includes("Login failed")) {
