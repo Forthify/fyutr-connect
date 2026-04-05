@@ -19,18 +19,76 @@ export interface SemesterCalendar {
   schedules: Schedule[];
 }
 
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-const TEACHER_MARKERS = [">Teacher<", ">Pengajar<", ">Lecturer<", "Non-editing teacher"];
+type CurriculumCourse = { code: string; name: string };
+type SemesterInfo = { id: string; title: string; isLatest: boolean };
+type CourseRegistration = SemesterCalendar & { sesisem: string };
+type ElearningCourse = {
+  id: number;
+  shortname?: string;
+  fullname?: string;
+  contacts?: Array<{ fullname?: string }>;
+};
+type SectionDetail = {
+  day?: string;
+  masa?: string;
+  jas_seksyem?: string | number;
+};
+
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const STUDENT_PORTAL = "https://studentportal.utm.my";
+const DEFAULT_SESISEM = "202420251";
+const DAYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
+const LOGIN_ERRORS = {
+  missingToken:
+    "Login failed: Could not extract CSRF token from UTM login page.",
+  invalidCredentials:
+    "Login failed: Invalid credentials. Please check your UTM ID and Password.",
+  session: "Login failed: Session not established on student portal.",
+};
+const TEACHER_MARKERS = [
+  "Teacher",
+  "Pengajar",
+  "Lecturer",
+  "Non-editing teacher",
+];
 const TEACHER_NAME_PATTERNS = [
   /class="userlink"[^>]*>([^<]+)<\/a>/i,
   /<th[^>]*class="(?:[^"]*\s)?c1(?:\s[^"]*)?"[^>]*>.*?<a[^>]*>([^<]+)<\/a>/is,
   /<th[^>]*>.*?<a[^>]*course=\d+[^>]*>([^<]+)<\/a>/is,
   /<a[^>]*href="[^"]*user\/profile\.php\?id=\d+[^"]*"[^>]*>([^<]+)<\/a>/i,
 ];
+const MODAL_RE =
+  /<div[^>]*class="[^"]*modal[^"]*"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/g;
+
+const isRedirect = (status: number) => status >= 300 && status < 400;
+const toAbsoluteUrl = (baseUrl: string, url: string) =>
+  url.startsWith("http") ? url : `${baseUrl}${url}`;
+const formatSemesterTitle = (id: string, fallback = id) =>
+  id.length >= 9
+    ? `${id.slice(0, 4)}/${id.slice(4, 8)} Semester ${id.slice(8)}`
+    : fallback;
+const normalizeName = (name: string) => name.replace(/\s+\d{3,8}$/, "").trim();
+const dayIndex = (day: string) => DAYS.indexOf(day.trim().toLowerCase());
+const findCourseCode = (text: string) =>
+  text.match(/([A-Z]{2,4}\d{4})/i)?.[1]?.toUpperCase() ?? null;
+const moodlePathForSemester = (id: string) =>
+  id.match(/^20(\d{2})20(\d{2})(\d)$/)?.slice(1).join("") ?? null;
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").trim();
+}
+
+function cleanText(html: string): string {
+  return decodeHtml(stripHtml(html));
 }
 
 function toMinutes(time: string): number {
@@ -41,37 +99,92 @@ function toMinutes(time: string): number {
 function parseCookies(header: string | null, existing: string[]): string[] {
   if (!header) return existing;
   const result = [...existing];
-  header.split(/,(?=[^;]+=[^;]+)/).map(c => c.split(";")[0].trim()).forEach(nc => {
-    const name = nc.split("=")[0];
-    const idx = result.findIndex(c => c.startsWith(name + "="));
-    if (idx >= 0) result[idx] = nc;
-    else result.push(nc);
-  });
+  header
+    .split(/,(?=[^;]+=[^;]+)/)
+    .map((cookie) => cookie.split(";")[0].trim())
+    .forEach((cookie) => {
+      const name = cookie.split("=")[0];
+      const index = result.findIndex((value) => value.startsWith(name + "="));
+      if (index >= 0) result[index] = cookie;
+      else result.push(cookie);
+    });
   return result;
 }
 
 function decodeHtml(html: string): string {
   if (!html.includes("&")) return html;
-  const entities: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", "#039": "'", nbsp: " " };
-  return html.replace(/&(amp|lt|gt|quot|#0?39|nbsp|copy|middot);/g, (m, e) => entities[e] ?? m);
+  const entities: Record<string, string> = {
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: '"',
+    "#39": "'",
+    "#039": "'",
+    nbsp: " ",
+  };
+  return html.replace(
+    /&(amp|lt|gt|quot|#0?39|nbsp|copy|middot);/g,
+    (match, entity) => entities[entity] ?? match,
+  );
 }
 
 function parseTime(timeStr: string): string {
   const match = timeStr.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   if (!match) return "00:00";
-  let h = parseInt(match[1], 10);
-  if (match[3].toUpperCase() === "PM" && h < 12) h += 12;
-  if (match[3].toUpperCase() === "AM" && h === 12) h = 0;
-  return `${h.toString().padStart(2, "0")}:${match[2]}`;
+  let hour = parseInt(match[1], 10);
+  if (match[3].toUpperCase() === "PM" && hour < 12) hour += 12;
+  if (match[3].toUpperCase() === "AM" && hour === 12) hour = 0;
+  return `${hour.toString().padStart(2, "0")}:${match[2]}`;
+}
+
+function rows(html: string): string[] {
+  return [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map(
+    ([, row]) => row,
+  );
+}
+
+function cells(html: string, tag: "td" | "th" = "td"): string[] {
+  const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "g");
+  return [...html.matchAll(re)].map(([, cell]) => cell);
 }
 
 function extractTeacherName(rowText: string): string | null {
-  if (!TEACHER_MARKERS.some(m => rowText.includes(m))) return null;
-  for (const pat of TEACHER_NAME_PATTERNS) {
-    const m = rowText.match(pat);
-    if (m) return m[1].trim();
+  if (!TEACHER_MARKERS.some((marker) => rowText.includes(marker))) return null;
+  for (const pattern of TEACHER_NAME_PATTERNS) {
+    const match = rowText.match(pattern);
+    if (match && match[1]) {
+      return normalizeName(decodeHtml(stripHtml(match[1])));
+    }
   }
   return null;
+}
+
+function mergeTimeSlot(
+  schedule: Schedule,
+  day: number,
+  slot: { start: string; end: string },
+) {
+  const existing = schedule.timeSlots.find((timeSlot) => {
+    if (timeSlot.day !== day) return false;
+    const gap = toMinutes(slot.start) - toMinutes(timeSlot.end);
+    return gap >= 0 && gap <= 10;
+  });
+
+  if (existing) {
+    existing.end = slot.end;
+    return;
+  }
+
+  if (
+    !schedule.timeSlots.some(
+      (timeSlot) =>
+        timeSlot.day === day &&
+        timeSlot.start === slot.start &&
+        timeSlot.end === slot.end,
+    )
+  ) {
+    schedule.timeSlots.push({ day, start: slot.start, end: slot.end });
+  }
 }
 
 export class UTMScraper {
@@ -80,330 +193,555 @@ export class UTMScraper {
   private updateCookies(header: string | null) {
     this.cookies = parseCookies(header, this.cookies);
   }
-
   private get cookieHeader() {
     return this.cookies.join("; ");
   }
 
-  private headers(extra: Record<string, string> = {}) {
-    return { "User-Agent": UA, Cookie: this.cookieHeader, ...extra };
+  private async request(url: string, init: RequestInit = {}) {
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        "User-Agent": UA,
+        Cookie: this.cookieHeader,
+        ...(init.headers as Record<string, string> | undefined),
+      },
+    });
+    this.updateCookies(response.headers.get("set-cookie"));
+    return response;
   }
 
-  private async loginToPortal(baseUrl: string, studentId: string, password: string): Promise<void> {
-    const loginPageUrl = `${baseUrl}/login`;
-    const loginPageRes = await fetch(loginPageUrl, { headers: { "User-Agent": UA }, redirect: "manual" });
-    this.updateCookies(loginPageRes.headers.get("set-cookie"));
-
-    let loginHtml = "";
-    if (loginPageRes.status >= 300 && loginPageRes.status < 400) {
-      const loc = loginPageRes.headers.get("location");
-      if (loc) {
-        const rUrl = loc.startsWith("http") ? loc : `${baseUrl}${loc}`;
-        const r = await fetch(rUrl, { headers: this.headers() });
-        this.updateCookies(r.headers.get("set-cookie"));
-        loginHtml = await r.text();
-      }
-    } else {
-      loginHtml = await loginPageRes.text();
+  private async followRedirects(baseUrl: string, nextUrl: string | null) {
+    for (let i = 0; nextUrl && i < 10; i++) {
+      const response = await this.request(toAbsoluteUrl(baseUrl, nextUrl), {
+        redirect: "manual",
+      });
+      await response.text();
+      nextUrl = isRedirect(response.status)
+        ? response.headers.get("location")
+        : null;
     }
+  }
 
-    const tokenMatch =
-      loginHtml.match(/name="_token"\s+(?:type="hidden"\s+)?value="([^"]+)"/) ||
-      loginHtml.match(/value="([^"]+)"\s*(?:type="hidden"\s*)?name="_token"/) ||
-      loginHtml.match(/<meta\s+name="csrf-token"\s+content="([^"]+)"/);
+  private async loginToPortal(
+    baseUrl: string,
+    studentId: string,
+    password: string,
+  ): Promise<void> {
+    const loginUrl = `${baseUrl}/login`;
+    const loginPage = await this.request(loginUrl, { redirect: "manual" });
+    const loginHtml =
+      isRedirect(loginPage.status) && loginPage.headers.get("location")
+        ? await (
+            await this.request(
+              toAbsoluteUrl(baseUrl, loginPage.headers.get("location")!),
+            )
+          ).text()
+        : await loginPage.text();
 
-    if (!tokenMatch) throw new Error("Login failed: Could not extract CSRF token from UTM login page.");
+    const token = [
+      /name="_token"\s+(?:type="hidden"\s+)?value="([^"]+)"/,
+      /value="([^"]+)"\s*(?:type="hidden"\s*)?name="_token"/,
+      /<meta\s+name="csrf-token"\s+content="([^"]+)"/,
+    ]
+      .map((re) => loginHtml.match(re)?.[1])
+      .find((value): value is string => Boolean(value));
 
-    const usesEmail = loginHtml.includes('name="email"');
-    const body = new URLSearchParams({ _token: tokenMatch[1], [usesEmail ? "email" : "username"]: studentId, password });
+    if (!token) throw new Error(LOGIN_ERRORS.missingToken);
 
-    const loginRes = await fetch(loginPageUrl, {
+    const response = await this.request(loginUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", ...this.headers(), Referer: loginPageUrl, Origin: baseUrl },
-      body: body.toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Referer: loginUrl,
+        Origin: baseUrl,
+      },
+      body: new URLSearchParams({
+        _token: token,
+        [loginHtml.includes('name="email"') ? "email" : "username"]: studentId,
+        password,
+      }).toString(),
       redirect: "manual",
     });
-    this.updateCookies(loginRes.headers.get("set-cookie"));
 
-    const redirect = loginRes.headers.get("location");
-    if (!redirect || redirect.includes("/login") || loginRes.status === 422) {
-      throw new Error("Login failed: Invalid credentials. Please check your UTM ID and Password.");
+    const nextUrl = response.headers.get("location");
+    if (!nextUrl || nextUrl.includes("/login") || response.status === 422) {
+      throw new Error(LOGIN_ERRORS.invalidCredentials);
     }
 
-    const nextUrl = redirect.startsWith("http") ? redirect : `${baseUrl}${redirect}`;
-    const nextRes = await fetch(nextUrl, { headers: this.headers(), redirect: "manual" });
-    this.updateCookies(nextRes.headers.get("set-cookie"));
+    await this.followRedirects(baseUrl, nextUrl);
   }
 
-  async scrape(studentId: string, password: string): Promise<SemesterCalendar[]> {
-    await this.loginToPortal("https://studentportal.utm.my", studentId, password);
-
-    const timetableRes = await fetch("https://studentportal.utm.my/timetablePersonalize", {
-      headers: this.headers(), redirect: "manual",
+  private async fetchTimetableLanding(): Promise<string> {
+    const response = await this.request(`${STUDENT_PORTAL}/timetablePersonalize`, {
+      redirect: "manual",
     });
-    this.updateCookies(timetableRes.headers.get("set-cookie"));
-
-    if (timetableRes.status >= 300 && timetableRes.status < 400) {
-      throw new Error("Login failed: Session not established on student portal.");
+    const html = await response.text();
+    if (
+      isRedirect(response.status) ||
+      html.includes("STUDENTLogin") ||
+      html.includes('name="username"')
+    ) {
+      throw new Error(LOGIN_ERRORS.session);
     }
+    return html;
+  }
 
-    const timetableHtml = await timetableRes.text();
-    if (timetableHtml.includes("STUDENTLogin") || timetableHtml.includes('name="username"')) {
-      throw new Error("Login failed: Session not established on student portal.");
+  private listSemesters(
+    timetableHtml: string,
+    curriculumMap: Map<string, CurriculumCourse[]>,
+    latestSesisem: string,
+    hasRegistration: boolean,
+  ): SemesterInfo[] {
+    const ids = new Set(curriculumMap.keys());
+    for (const [, value] of timetableHtml.matchAll(
+      /<option\s+value="([^"]+)"[^>]*>[^<]*<\/option>/g,
+    )) {
+      const id = value.trim();
+      if (/^\d+$/.test(id)) ids.add(id);
     }
+    if (!ids.size && hasRegistration) ids.add(latestSesisem);
+    return [...ids].map((id) => ({
+      id,
+      title: formatSemesterTitle(id),
+      isLatest: id === latestSesisem,
+    }));
+  }
 
-    const semesters: { id: string; title: string }[] = [];
-    let m;
-    const semRe = /<option\s+value="([^"]+)"[^>]*>([^<]*)<\/option>/g;
-    while ((m = semRe.exec(timetableHtml)) !== null) {
-      const val = m[1].trim();
-      if (val && /^\d+$/.test(val)) semesters.push({ id: val, title: m[2].trim() || val });
+  private async fetchSemesterGrid(id: string): Promise<Schedule[]> {
+    try {
+      const html = await (
+        await this.request(
+          `${STUDENT_PORTAL}/timetablePersonalizeSearch?semester=${id}`,
+        )
+      ).text();
+      return this.parseScheduleGrid(html);
+    } catch {
+      return [];
     }
+  }
 
-    if (semesters.length === 0) {
-      const calendars: SemesterCalendar[] = [];
-      const reg = await this.fetchCourseRegistration();
-      if (reg) calendars.push(reg);
-      const grid = this.parseScheduleGrid(timetableHtml);
-      if (grid.length > 0) calendars.push({ title: null, schedules: grid });
-      return calendars;
-    }
+  private async fetchSemesterTimetables(
+    semesters: SemesterInfo[],
+    registration: CourseRegistration | null,
+  ) {
+    return new Map(
+      await Promise.all(
+        semesters.map(async (semester) => {
+          const schedules =
+            semester.isLatest && registration
+              ? registration.schedules
+              : await this.fetchSemesterGrid(semester.id);
+          return [
+            semester.id,
+            new Map(
+              schedules.map(
+                (schedule) => [schedule.code.toUpperCase(), schedule] as const,
+              ),
+            ),
+          ] as const;
+        }),
+      ),
+    );
+  }
 
-    // Fire all sources concurrently
-    const currentRegPromise = this.fetchCourseRegistration();
-    const semesterPromises = semesters.map(async (sem): Promise<SemesterCalendar | null> => {
-      try {
-        const res = await fetch(`https://studentportal.utm.my/timetablePersonalizeSearch?semester=${sem.id}`, { headers: this.headers() });
-        const schedules = this.parseScheduleGrid(await res.text());
-        return schedules.length > 0 ? { title: sem.title, schedules } : null;
-      } catch { return null; }
+  private mergeSchedules(
+    curriculumCourses: CurriculumCourse[],
+    timetable: Map<string, Schedule>,
+  ): Schedule[] {
+    const added = new Set<string>();
+    const schedules = curriculumCourses.map((course) => {
+      const code = course.code.toUpperCase();
+      const timetableMatch = timetable.get(code);
+      added.add(code);
+      return {
+        code: course.code,
+        title: course.name || timetableMatch?.title || course.code,
+        creditHours: timetableMatch?.creditHours ?? null,
+        section: timetableMatch?.section ?? null,
+        instructor: timetableMatch?.instructor ?? null,
+        location: timetableMatch?.location ?? null,
+        timeSlots: timetableMatch?.timeSlots ?? [],
+      };
     });
 
-    const currentReg = await currentRegPromise;
-    const elearningPromise = currentReg ? this.fetchElearningInstructors(currentReg, studentId, password) : Promise.resolve();
-    const [semResults] = await Promise.all([Promise.all(semesterPromises), elearningPromise]);
+    for (const [code, schedule] of timetable) {
+      if (!added.has(code)) schedules.push(schedule);
+    }
+    return schedules;
+  }
 
-    const calendars: SemesterCalendar[] = [];
-    if (currentReg) calendars.push(currentReg);
-    for (const r of semResults) if (r) calendars.push(r);
+  private buildCalendars(
+    semesters: SemesterInfo[],
+    curriculumMap: Map<string, CurriculumCourse[]>,
+    timetableBySemester: Map<string, Map<string, Schedule>>,
+  ): SemesterCalendar[] {
+    return semesters
+      .map((semester) => ({
+        title: semester.title,
+        schedules: this.mergeSchedules(
+          curriculumMap.get(semester.id) ?? [],
+          timetableBySemester.get(semester.id) ?? new Map<string, Schedule>(),
+        ),
+      }))
+      .filter((calendar) => calendar.schedules.length > 0);
+  }
+
+  private async fillSectionDetails(schedule: Schedule, csrf: string) {
+    try {
+      const response = await this.request(
+        `${STUDENT_PORTAL}/courseRegistration/viewSectionDetail?courseCode_token=${encodeURIComponent(schedule.code)}`,
+        {
+          headers: {
+            "X-CSRF-TOKEN": csrf,
+            Accept: "application/json",
+          },
+        },
+      );
+
+      const sections = (
+        ((await response.json()) as { getSectionList?: SectionDetail[] })
+          .getSectionList ?? []
+      ).filter(({ day, masa }) => day && masa && day !== "-" && masa !== "-");
+      const matches = sections.filter(
+        (section) =>
+          String(section.jas_seksyem ?? "").trim() ===
+          String(schedule.section ?? "").trim(),
+      );
+
+      for (const section of matches.length ? matches : sections.slice(0, 1)) {
+        const [start, end] =
+          section.masa?.split("-").map((time) => time.trim()) ?? [];
+        const day = section.day ? dayIndex(section.day) : -1;
+        if (!start || !end || day < 0) continue;
+        mergeTimeSlot(schedule, day, {
+          start: parseTime(start),
+          end: parseTime(end),
+        });
+      }
+    } catch {
+      /* skip */
+    }
+  }
+
+  async scrape(
+    studentId: string,
+    password: string,
+  ): Promise<SemesterCalendar[]> {
+    await this.loginToPortal(STUDENT_PORTAL, studentId, password);
+
+    const timetableHtml = await this.fetchTimetableLanding();
+    const [curriculumMap, registration] = await Promise.all([
+      this.fetchCurriculumCourses(),
+      this.fetchCourseRegistration(),
+    ]);
+
+    const latestSesisem = registration?.sesisem ?? DEFAULT_SESISEM;
+    const semesters = this.listSemesters(
+      timetableHtml,
+      curriculumMap,
+      latestSesisem,
+      Boolean(registration),
+    );
+    const calendars = this.buildCalendars(
+      semesters,
+      curriculumMap,
+      await this.fetchSemesterTimetables(semesters, registration),
+    );
+    const moodlePaths = [
+      ...new Set(
+        semesters
+          .map(({ id }) => moodlePathForSemester(id))
+          .filter((path): path is string => Boolean(path)),
+      ),
+    ];
+
+    if (calendars.length && moodlePaths.length) {
+      await this.fetchElearningInstructors(
+        calendars.flatMap((calendar) => calendar.schedules),
+        moodlePaths,
+        studentId,
+        password,
+      );
+    }
+
     return calendars;
   }
 
-  private async fetchElearningInstructors(calendar: SemesterCalendar, studentId: string, password: string): Promise<void> {
-    if (!calendar.title || calendar.schedules.length === 0) return;
-
-    // Derive Moodle path from semester title (e.g. "2025/2026 Semester 2" → "25262")
-    let semPath = "";
-    const slashMatch = calendar.title.match(/(\d{2})(\d{2})\/(\d{2})(\d{2})\s+Semester\s+(\d)/);
-    const plainMatch = calendar.title.match(/^20(\d{2})20(\d{2})(\d)$/);
-    if (slashMatch) semPath = `${slashMatch[2]}${slashMatch[4]}${slashMatch[5]}`;
-    else if (plainMatch) semPath = `${plainMatch[1]}${plainMatch[2]}${plainMatch[3]}`;
-    if (!semPath) return;
-
+  private async fetchCurriculumCourses(): Promise<
+    Map<string, CurriculumCourse[]>
+  > {
+    const result = new Map<string, CurriculumCourse[]>();
     try {
-      const base = `https://elearning.utm.my/${semPath}`;
-      const loginUrl = `${base}/login/index.php`;
+      const response = await this.request(`${STUDENT_PORTAL}/curriculumStructure`);
+      if (response.status !== 200) return result;
 
-      // Login to Moodle
-      const initRes = await fetch(loginUrl, { headers: { "User-Agent": UA }, redirect: "manual" });
-      let elCookies = parseCookies(initRes.headers.get("set-cookie"), []);
-      const loginHtml = await initRes.text();
+      let currentSesisem = "";
+      for (const row of rows(await response.text())) {
+        if (
+          row.includes("color:gray") ||
+          row.includes("colspan") ||
+          !row.includes("font-weight:bold")
+        ) {
+          continue;
+        }
 
-      const token = loginHtml.match(/name="logintoken"\s+value="([^"]+)"/);
-      if (!token) return;
+        const [sesisemCell, nameCell, codeCell] = cells(row);
+        const code = codeCell?.match(/>([A-Z]{2,4}\d{4})</)?.[1];
+        const name = nameCell ? stripHtml(nameCell) : "";
+        currentSesisem =
+          sesisemCell?.match(/(\d{9})/)?.[1] ?? currentSesisem;
+        if (!currentSesisem || !code || !name) continue;
 
-      const body = new URLSearchParams({ username: studentId, password, logintoken: token[1] });
-      const loginRes = await fetch(loginUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: elCookies.join("; ") },
-        body: body.toString(), redirect: "manual",
-      });
-      elCookies = parseCookies(loginRes.headers.get("set-cookie"), elCookies);
-
-      // Get sesskey from dashboard
-      const elHeaders = { "User-Agent": UA, Cookie: elCookies.join("; ") };
-      const dashRes = await fetch(`${base}/my/courses.php`, { headers: elHeaders });
-      elCookies = parseCookies(dashRes.headers.get("set-cookie"), elCookies);
-      const sessMatch = (await dashRes.text()).match(/"sesskey":"([^"]+)"/);
-      if (!sessMatch) return;
-
-      // Fetch enrolled courses via Moodle AJAX
-      const ajaxUrl = `${base}/lib/ajax/service.php?sesskey=${sessMatch[1]}&info=core_course_get_enrolled_courses_by_timeline_classification`;
-      const ajaxRes = await fetch(ajaxUrl, {
-        method: "POST",
-        headers: { ...elHeaders, "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify([{ index: 0, methodname: "core_course_get_enrolled_courses_by_timeline_classification", args: { offset: 0, limit: 0, classification: "all", sort: "fullname" } }]),
-      });
-      const ajaxData = (await ajaxRes.json()) as any[];
-      const courses = ajaxData?.[0]?.data?.courses;
-      if (!courses) return;
-
-      // Match elearning courses to schedules and fetch participant pages in parallel
-      const matched = courses.flatMap((ec: any) => {
-        const code = ec.shortname?.match(/^([A-Z0-9]+)/i)?.[1]?.toUpperCase();
-        if (!code) return [];
-        const sched = calendar.schedules.find(s => s.code.toUpperCase() === code);
-        return sched ? [{ id: ec.id, code, sched }] : [];
-      });
-
-      await Promise.all(matched.map(async ({ id, code, sched }: { id: number; code: string; sched: Schedule }) => {
-        try {
-          const html = await (await fetch(`${base}/user/index.php?id=${id}`, { headers: { ...elHeaders, Cookie: elCookies.join("; ") } })).text();
-          const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
-          let rm;
-          while ((rm = rowRe.exec(html)) !== null) {
-            const name = extractTeacherName(rm[1]);
-            if (name) { sched.instructor = name; return; }
-          }
-          // Fallback: scan for teacher name near role text
-          const fb = html.match(/<a[^>]*href="[^"]*user\/profile\.php\?id=\d+[^"]*"[^>]*>([^<]+)<\/a>[\s\S]{0,1000}?(?:Teacher|Pengajar|Lecturer)/i);
-          if (fb) sched.instructor = fb[1].trim();
-        } catch { /* skip */ }
-      }));
-    } catch { /* skip */ }
+        const courses = result.get(currentSesisem) ?? [];
+        if (!result.has(currentSesisem)) result.set(currentSesisem, courses);
+        if (!courses.some((course) => course.code === code)) {
+          courses.push({ code, name });
+        }
+      }
+    } catch {
+      /* fall back to timetable-only */
+    }
+    return result;
   }
 
-  private async fetchCourseRegistration(): Promise<SemesterCalendar | null> {
-    const regUrl = "https://studentportal.utm.my/courseRegistration";
-    const res = await fetch(regUrl, { headers: this.headers(), redirect: "manual" });
-    if (res.status >= 300 && res.status < 400 && !res.headers.get("location")?.includes(regUrl)) return null;
+  private async fetchElearningInstructors(
+    schedules: Schedule[],
+    moodlePaths: string[],
+    studentId: string,
+    password: string,
+  ): Promise<void> {
+    const scheduleByCode = new Map(
+      schedules.map((schedule) => [schedule.code.toUpperCase(), schedule]),
+    );
 
-    const html = await res.text();
-    const csrfMatch = html.match(/<meta\s+name="csrf-token"\s+content="([^"]+)"/);
-    if (!csrfMatch) return null;
-    const csrf = csrfMatch[1];
-
-    const sessionMatch = html.match(/Academic Session\s*:\s*(\d+)/i);
-    let title = "Current Semester";
-    if (sessionMatch) {
-      const s = sessionMatch[1];
-      title = s.length >= 9 ? `${s.substring(0, 4)}/${s.substring(4, 8)} Semester ${s.substring(8)}` : s;
-    }
-
-    const tbodyMatch = html.match(/<tbody[^>]*id="existingCoursesPmpMpBody"[^>]*>([\s\S]*?)<\/tbody>/);
-    if (!tbodyMatch) return null;
-
-    const schedules: Schedule[] = [];
-    const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
-    const tdRe = /<td[^>]*>([\s\S]*?)<\/td>/g;
-    let trM;
-    while ((trM = trRe.exec(tbodyMatch[1])) !== null) {
-      const cells: string[] = [];
-      let tdM;
-      while ((tdM = tdRe.exec(trM[1])) !== null) cells.push(decodeHtml(stripHtml(tdM[1])));
-      if (cells.length >= 5 && cells[1] && cells[4] && cells[1] !== "-") {
-        schedules.push({ code: cells[1], title: cells[2], creditHours: parseFloat(cells[3]) || null, section: cells[4], instructor: null, location: null, timeSlots: [] });
-      }
-    }
-
-    if (schedules.length === 0) return null;
-
-    // Fetch all section details in parallel
-    await Promise.all(schedules.map(async (sched) => {
+    for (const path of moodlePaths) {
       try {
-        const r = await fetch(`https://studentportal.utm.my/courseRegistration/viewSectionDetail?courseCode_token=${encodeURIComponent(sched.code)}`, {
-          headers: this.headers({ "X-CSRF-TOKEN": csrf, Accept: "application/json" }),
+        const base = `https://elearning.utm.my/${path}`;
+        const loginUrl = `${base}/login/index.php`;
+        let cookies: string[] = [];
+        const request = async (url: string, init: RequestInit = {}) => {
+          const response = await fetch(url, {
+            ...init,
+            headers: {
+              "User-Agent": UA,
+              Cookie: cookies.join("; "),
+              ...(init.headers as Record<string, string> | undefined),
+            },
+          });
+          cookies = parseCookies(response.headers.get("set-cookie"), cookies);
+          return response;
+        };
+
+        const loginHtml = await (
+          await request(loginUrl, { redirect: "manual" })
+        ).text();
+        const token = loginHtml.match(/name="logintoken"\s+value="([^"]+)"/)?.[1];
+        if (!token) continue;
+
+        const login = await request(loginUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            username: studentId,
+            password,
+            logintoken: token,
+          }).toString(),
+          redirect: "manual",
         });
-        const json = (await r.json()) as any;
-        const section = String(sched.section).trim();
-        for (const sec of json?.getSectionList ?? []) {
-          if (sec.jas_seksyem?.toString().trim() !== section) continue;
-          if (!sec.day || !sec.masa || sec.day === "-" || sec.masa === "-") continue;
-          const parts = sec.masa.split("-").map((t: string) => t.trim());
-          if (parts.length === 2) {
-            const day = DAYS.indexOf(sec.day.trim().toLowerCase());
-            if (day !== -1) sched.timeSlots.push({ day, start: parseTime(parts[0]), end: parseTime(parts[1]) });
+        const nextUrl = login.headers.get("location");
+        if (nextUrl) await (await request(nextUrl, { redirect: "manual" })).text();
+
+        const sesskey = (await (
+          await request(`${base}/my/courses.php`)
+        ).text()).match(/"sesskey":"([^"]+)"/)?.[1];
+        if (!sesskey) continue;
+
+        const courses = (
+          (await (
+            await request(
+              `${base}/lib/ajax/service.php?sesskey=${sesskey}&info=core_course_get_enrolled_courses_by_timeline_classification`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Accept: "application/json",
+                },
+                body: JSON.stringify([
+                  {
+                    index: 0,
+                    methodname:
+                      "core_course_get_enrolled_courses_by_timeline_classification",
+                    args: {
+                      offset: 0,
+                      limit: 0,
+                      classification: "all",
+                      sort: "fullname",
+                    },
+                  },
+                ]),
+              },
+            )
+          ).json()) as Array<{ data?: { courses?: ElearningCourse[] } }>
+        )[0]?.data?.courses;
+        if (!courses?.length) continue;
+
+        const fallback = new Map<number, Schedule>();
+        for (const course of courses) {
+          const code = findCourseCode(
+            `${course.shortname ?? ""} ${course.fullname ?? ""}`,
+          );
+          const schedule = code ? scheduleByCode.get(code) : null;
+          if (!code || !schedule || schedule.instructor) continue;
+
+          const name = course.contacts?.[0]?.fullname;
+          if (name) {
+            schedule.instructor = normalizeName(name);
+          } else {
+            fallback.set(course.id, schedule);
           }
         }
-      } catch { /* skip */ }
-    }));
 
-    return { title, schedules };
+        await Promise.all(
+          [...fallback].map(async ([courseId, schedule]) => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 15000);
+            try {
+              const html = await (
+                await request(`${base}/user/index.php?id=${courseId}`, {
+                  signal: controller.signal,
+                })
+              ).text();
+              const name = rows(html)
+                .map(extractTeacherName)
+                .find((value): value is string => Boolean(value));
+              if (name) schedule.instructor = name;
+            } catch {
+              /* skip */
+            } finally {
+              clearTimeout(timer);
+            }
+          }),
+        );
+      } catch {
+        /* skip */
+      }
+    }
+  }
+
+  private async fetchCourseRegistration(): Promise<CourseRegistration | null> {
+    const regUrl = `${STUDENT_PORTAL}/courseRegistration`;
+    const response = await this.request(regUrl, { redirect: "manual" });
+    if (
+      isRedirect(response.status) &&
+      !response.headers.get("location")?.includes(regUrl)
+    ) {
+      return null;
+    }
+
+    const html = await response.text();
+    const csrf = html.match(/<meta\s+name="csrf-token"\s+content="([^"]+)"/)?.[1];
+    const tbody = html.match(
+      /<tbody[^>]*id="existingCoursesPmpMpBody"[^>]*>([\s\S]*?)<\/tbody>/,
+    )?.[1];
+    if (!csrf || !tbody) return null;
+
+    const sesisem =
+      html.match(/id="sesisemId"[^>]*value="([^"]+)"/i)?.[1] ?? DEFAULT_SESISEM;
+    const schedules = rows(tbody).flatMap((row) => {
+      const [, code, title, creditHours, section] = cells(row).map(cleanText);
+      return code && section && code !== "-"
+        ? [
+            {
+              code,
+              title,
+              creditHours: parseFloat(creditHours) || null,
+              section,
+              instructor: null,
+              location: null,
+              timeSlots: [],
+            },
+          ]
+        : [];
+    });
+    if (!schedules.length) return null;
+
+    await Promise.all(schedules.map((schedule) => this.fillSectionDetails(schedule, csrf)));
+
+    return {
+      title: formatSemesterTitle(sesisem, "Current Semester"),
+      schedules,
+      sesisem,
+    };
   }
 
   private parseScheduleGrid(html: string): Schedule[] {
-    const tableMatch = html.match(/<table[^>]*class="[^"]*table-bordered[^"]*"[^>]*>([\s\S]*?)<\/table>/);
-    if (!tableMatch) return [];
-    const tableHtml = tableMatch[1];
+    const tableHtml = html.match(
+      /<table[^>]*class="[^"]*table-bordered[^"]*"[^>]*>([\s\S]*?)<\/table>/,
+    )?.[1];
+    const thead = tableHtml?.match(/<thead[^>]*>([\s\S]*?)<\/thead>/)?.[1];
+    if (!tableHtml || !thead) return [];
 
-    const theadMatch = tableHtml.match(/<thead[^>]*>([\s\S]*?)<\/thead>/);
-    if (!theadMatch) return [];
+    const timeSlots = cells(thead, "th").slice(1).flatMap((cell) => {
+      const [start, end] = cleanText(cell).split("-").map((part) => part.trim());
+      return start && end
+        ? [{ start: parseTime(start), end: parseTime(end) }]
+        : [];
+    });
+    if (!timeSlots.length) return [];
 
-    const thRe = /<th[^>]*>([\s\S]*?)<\/th>/g;
-    const timeSlots: { start: string; end: string }[] = [];
-    let thM, isFirst = true;
-    while ((thM = thRe.exec(theadMatch[1])) !== null) {
-      if (isFirst) { isFirst = false; continue; }
-      const parts = decodeHtml(stripHtml(thM[1])).split("-").map(t => t.trim());
-      if (parts.length === 2) timeSlots.push({ start: parseTime(parts[0]), end: parseTime(parts[1]) });
-    }
-    if (timeSlots.length === 0) return [];
+    const schedules = new Map<string, Schedule>();
+    for (const row of rows(tableHtml)) {
+      if (row.includes("<th")) continue;
 
-    const scheduleMap = new Map<string, Schedule>();
-    const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
-    const tdRe = /<td[^>]*>([\s\S]*?)<\/td>/g;
+      const [dayCell, ...slotCells] = cells(row);
+      const day = dayCell ? dayIndex(cleanText(dayCell)) : -1;
+      if (day < 0) continue;
 
-    let rowM;
-    while ((rowM = rowRe.exec(tableHtml)) !== null) {
-      const rowContent = rowM[1];
-      if (rowContent.includes("<th")) continue;
-
-      const cells: string[] = [];
-      let tdM;
-      while ((tdM = tdRe.exec(rowContent)) !== null) cells.push(tdM[1]);
-      if (cells.length === 0) continue;
-
-      const dayIndex = DAYS.indexOf(decodeHtml(stripHtml(cells[0])).toLowerCase());
-      if (dayIndex === -1) continue;
-
-      for (let i = 1; i < cells.length; i++) {
-        const slotIdx = i - 1;
-        if (slotIdx >= timeSlots.length) break;
+      slotCells.forEach((cell, index) => {
+        const slot = timeSlots[index];
+        if (!slot) return;
 
         const cellText = decodeHtml(
-          cells[i]
-            .replace(/<div[^>]*class="[^"]*modal[^"]*"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/g, "")
-            .replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(),
+          cell
+            .replace(MODAL_RE, "")
+            .replace(/<[^>]*>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim(),
         );
-        if (!cellText || cellText.length < 3) continue;
+        if (cellText.length < 3) return;
 
-        const courseMatch = cellText.match(/^([A-Za-z0-9]+)\s*-\s*([A-Za-z0-9]+)\s+(.*)/);
-        let code = "", section: string | null = null, location: string | null = null;
+        const match = cellText.match(
+          /^([A-Za-z0-9]+)\s*-\s*([A-Za-z0-9]+)\s+(.*)/,
+        );
+        const code = match?.[1]?.trim() ?? findCourseCode(cellText);
+        if (!code) return;
 
-        if (courseMatch) {
-          code = courseMatch[1].trim();
-          section = courseMatch[2].trim();
-          location = courseMatch[3].replace(/\s*LOCATION[\s\S]*/i, "").replace(/\s*Close\s*$/i, "").replace(/\s*map-pin\s*/g, "").trim() || null;
-        } else {
-          const fb = cellText.match(/([A-Za-z]{2,}[0-9]{3,})/);
-          if (fb) code = fb[1]; else continue;
-        }
+        const section = match?.[2]?.trim() ?? null;
+        const location =
+          match?.[3]
+            ?.replace(/\s*LOCATION[\s\S]*/i, "")
+            .replace(/\s*Close\s*$/i, "")
+            .replace(/\s*map-pin\s*/g, "")
+            .trim() || null;
+        const key = `${code}-${section ?? ""}`;
+        const schedule =
+          schedules.get(key) ??
+          {
+            code,
+            title: code,
+            creditHours: null,
+            section,
+            instructor: null,
+            location,
+            timeSlots: [],
+          };
 
-        const slot = timeSlots[slotIdx];
-        const key = `${code}-${section || ""}`;
-
-        if (!scheduleMap.has(key)) {
-          scheduleMap.set(key, { code, title: code, creditHours: null, section, instructor: null, location, timeSlots: [] });
-        }
-        const sched = scheduleMap.get(key)!;
-
-        // Merge adjacent slots (same day, ≤10min gap)
-        const existing = sched.timeSlots.find(t => {
-          if (t.day !== dayIndex) return false;
-          const gap = toMinutes(slot.start) - toMinutes(t.end);
-          return gap >= 0 && gap <= 10;
-        });
-
-        if (existing) {
-          existing.end = slot.end;
-        } else if (!sched.timeSlots.some(t => t.day === dayIndex && t.start === slot.start && t.end === slot.end)) {
-          sched.timeSlots.push({ day: dayIndex, start: slot.start, end: slot.end });
-        }
-
-        if (location && !sched.location) sched.location = location;
-      }
+        if (!schedules.has(key)) schedules.set(key, schedule);
+        mergeTimeSlot(schedule, day, slot);
+        if (location && !schedule.location) schedule.location = location;
+      });
     }
 
-    return Array.from(scheduleMap.values());
+    return [...schedules.values()];
   }
 }
