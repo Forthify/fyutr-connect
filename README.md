@@ -15,6 +15,10 @@ This API is built on [Hono](https://hono.dev) and deployed on [Cloudflare Worker
 | UiTM        | MyStudent (ECR iStudent) | ✅ Live |
 | IIUM        | i-Ma'luum (CAS)          | ✅ Live |
 | IIC         | Maestro CMS              | ✅ Live |
+| APU         | Student Portal           | ✅ Live |
+| UniKL       | ECITIE                   | ✅ Live |
+| UTM         | Student Portal           | ✅ Live |
+| UPSI        | MyUPSI Portal            | ✅ Live |
 
 ---
 
@@ -109,9 +113,11 @@ Authenticate and retrieve a student's timetable.
 | `VALIDATION_ERROR`      | 400  | Missing/invalid request fields |
 | `INTERNAL_SERVER_ERROR` | 500  | Scraping or network error      |
 
-### `GET /contributors`
+### `GET /institutions` (and `/contributors`)
 
-Returns all supported institutions with contributor metadata.
+Returns all supported institutions with detailed metadata, integration status, and contributor info.
+
+**Response (`200 OK`):**
 
 ```json
 {
@@ -122,6 +128,7 @@ Returns all supported institutions with contributor metadata.
         "id": "iium",
         "name": "International Islamic University Malaysia",
         "shortName": "IIUM",
+        "logoUri": "https://connect.fyutr.app/logos/iium.png",
         "integration": {
           "exists": true,
           "name": "i-Ma'luum",
@@ -141,6 +148,12 @@ Returns all supported institutions with contributor metadata.
   "error": null
 }
 ```
+
+> **Note**: The `logoUri` is dynamically constructed based on the request's origin.
+
+### `GET /logos/{filename}`
+
+Serves institution logos. These are also listed in the `logoUri` field of the institutions response.
 
 ---
 

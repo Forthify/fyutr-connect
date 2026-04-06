@@ -239,10 +239,11 @@ The Fyutr core team will apply any necessary normalization tweaks after your PR 
 2. **Create a branch**: `feat/institution-<id>` (e.g. `feat/institution-utm`).
 3. **Add your files**: `src/institution/<id>/scraper.ts` and `src/institution/<id>/route.ts`.
 4. **Register your route** in `src/index.ts`.
-5. **Open a Pull Request** with:
+5. **Add the institution logo** to `public/logos/`. Use an ID-based filename (e.g., `utm.png`).
+6. **Open a Pull Request** with:
    - The institution name and student portal URL.
    - A brief description of the authentication flow.
    - A sample (redacted) API response.
-6. Add yourself as a contributor in `src/data/contributors.json` under your institution's entry.
+7. Add your institution and yourself as a contributor in `src/data/institutions.json`.
 
 > By contributing, you agree that your code is licensed under the [GNU Affero General Public License v3.0](LICENSE.md).
