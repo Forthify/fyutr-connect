@@ -3,25 +3,29 @@
     "id": "um",
     "name": "Universiti Malaya",
     "shortName": "UM",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/um.png"
   },
   {
     "id": "usm",
     "name": "Universiti Sains Malaysia",
     "shortName": "USM",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/usm.png"
   },
   {
     "id": "ukm",
     "name": "Universiti Kebangsaan Malaysia",
     "shortName": "UKM",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/ukm.png"
   },
   {
     "id": "upm",
     "name": "Universiti Putra Malaysia",
     "shortName": "UPM",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/upm.png"
   },
   {
     "id": "utm",
@@ -38,7 +42,8 @@
         "github": "eemrull",
         "avatar": "https://github.com/eemrull.png"
       }
-    ]
+    ],
+    "logoUri": "/logos/utm.png"
   },
   {
     "id": "uitm",
@@ -47,7 +52,8 @@
     "integration": {
       "exists": true,
       "name": "MyStudent",
-      "url": "/institution/uitm"
+      "url": "/institution/uitm",
+      "requiresPassword": false
     },
     "contributors": [
       {
@@ -56,7 +62,8 @@
         "role": "Author",
         "avatar": "https://avatars.githubusercontent.com/lqmkim"
       }
-    ]
+    ],
+    "logoUri": "/logos/uitm.png"
   },
   {
     "id": "iium",
@@ -74,7 +81,8 @@
         "role": "Author",
         "avatar": "https://avatars.githubusercontent.com/lqmkim"
       }
-    ]
+    ],
+    "logoUri": "/logos/iium.png"
   },
   {
     "id": "iic",
@@ -91,175 +99,204 @@
         "role": "Author",
         "avatar": "https://avatars.githubusercontent.com/lqmkim"
       }
-    ]
+    ],
+    "logoUri": "/logos/iic.png"
   },
   {
     "id": "uum",
     "name": "Universiti Utara Malaysia",
     "shortName": "UUM",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/uum.jpg"
   },
   {
     "id": "unimas",
     "name": "Universiti Malaysia Sarawak",
     "shortName": "UNIMAS",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/unimas.png"
   },
   {
     "id": "ums",
     "name": "Universiti Malaysia Sabah",
     "shortName": "UMS",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/ums.png"
   },
   {
     "id": "upsi",
     "name": "Universiti Pendidikan Sultan Idris",
     "shortName": "UPSI",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/upsi.png"
   },
   {
     "id": "usim",
     "name": "Universiti Sains Islam Malaysia",
     "shortName": "USIM",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/usim.png"
   },
   {
     "id": "umt",
     "name": "Universiti Malaysia Terengganu",
     "shortName": "UMT",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/umt.png"
   },
   {
     "id": "ump",
     "name": "Universiti Malaysia Pahang",
     "shortName": "UMP",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/ump.png"
   },
   {
     "id": "unimap",
     "name": "Universiti Malaysia Perlis",
     "shortName": "UniMAP",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/unimap.png"
   },
   {
     "id": "unisza",
     "name": "Universiti Sultan Zainal Abidin",
     "shortName": "UniSZA",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/unisza.png"
   },
   {
     "id": "uthm",
     "name": "Universiti Tun Hussein Onn Malaysia",
     "shortName": "UTHM",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/uthm.png"
   },
   {
     "id": "utem",
     "name": "Universiti Teknikal Malaysia Melaka",
     "shortName": "UTeM",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/utem.jpg"
   },
   {
     "id": "umk",
     "name": "Universiti Malaysia Kelantan",
     "shortName": "UMK",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/umk.png"
   },
   {
     "id": "upnm",
     "name": "Universiti Pertahanan Nasional Malaysia",
     "shortName": "UPNM",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/upnm.png"
   },
   {
     "id": "utar",
     "name": "Universiti Tunku Abdul Rahman",
     "shortName": "UTAR",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/utar.png"
   },
   {
     "id": "mmu",
     "name": "Multimedia University",
     "shortName": "MMU",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/mmu.webp"
   },
   {
     "id": "uniten",
     "name": "Universiti Tenaga Nasional",
     "shortName": "UNITEN",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/uniten.png"
   },
   {
     "id": "utp",
     "name": "Universiti Teknologi PETRONAS",
     "shortName": "UTP",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/utp.png"
   },
   {
     "id": "sunway",
     "name": "Sunway University",
     "shortName": "Sunway",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/sunway.png"
   },
   {
     "id": "taylors",
     "name": "Taylor's University",
     "shortName": "Taylor's",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/taylor.png"
   },
   {
     "id": "monash",
     "name": "Monash University Malaysia",
     "shortName": "Monash",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/monash.png"
   },
   {
     "id": "nottingham",
     "name": "University of Nottingham Malaysia",
     "shortName": "Nottingham",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/nottingham.png"
   },
   {
     "id": "curtin",
     "name": "Curtin University Malaysia",
     "shortName": "Curtin",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/curtin.jpg"
   },
   {
     "id": "swinburne",
     "name": "Swinburne University of Technology Sarawak Campus",
     "shortName": "Swinburne",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/swinburne.png"
   },
   {
     "id": "ucsi",
     "name": "UCSI University",
     "shortName": "UCSI",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/ucsi.jpg"
   },
   {
     "id": "segi",
     "name": "SEGi University",
     "shortName": "SEGi",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/segi.png"
   },
   {
     "id": "help",
     "name": "HELP University",
     "shortName": "HELP",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/help.webp"
   },
   {
     "id": "imu",
     "name": "International Medical University",
     "shortName": "IMU",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/imu.png"
   },
   {
     "id": "msu",
     "name": "Management and Science University",
     "shortName": "MSU",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/msu.png"
   },
   {
     "id": "apu",
@@ -272,31 +309,39 @@
         "role": "author",
         "avatar": "https://avatars.githubusercontent.com/xinyitohh"
       }
-    ]
+    ],
+    "integration": {
+      "requiresPassword": false
+    },
+    "logoUri": "/logos/apu.jpg"
   },
   {
     "id": "tar-umt",
     "name": "Tunku Abdul Rahman University of Management and Technology",
     "shortName": "TAR UMT",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/tar-umt.png"
   },
   {
     "id": "xiamen",
     "name": "Xiamen University Malaysia",
     "shortName": "Xiamen",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/xiamen.png"
   },
   {
     "id": "heriot-watt",
     "name": "Heriot-Watt University Malaysia",
     "shortName": "Heriot-Watt",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/heriot-watt.png"
   },
   {
     "id": "reading",
     "name": "University of Reading Malaysia",
     "shortName": "Reading",
-    "contributors": []
+    "contributors": [],
+    "logoUri": "/logos/reading.png"
   },
   {
     "id": "unikl",
@@ -314,6 +359,7 @@
         "role": "Author",
         "avatar": "https://avatars.githubusercontent.com/IrfanNG"
       }
-    ]
+    ],
+    "logoUri": "/logos/unikl.png"
   }
 ]

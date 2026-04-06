@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import { success } from "../../utils/response";
 import institutions from "../../data/institutions.json";
 
-const contributorsRoute = new Hono();
+const institutionsRoute = new Hono();
 
-contributorsRoute.get("/", (c) => {
+institutionsRoute.get("/", (c) => {
   const origin = new URL(c.req.url).origin;
   const institutionsWithDynamicLogos = institutions.map((inst) => ({
     ...inst,
@@ -13,4 +13,4 @@ contributorsRoute.get("/", (c) => {
   return success(c, { institutions: institutionsWithDynamicLogos });
 });
 
-export { contributorsRoute };
+export { institutionsRoute };
