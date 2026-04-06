@@ -115,7 +115,19 @@
     "id": "upsi",
     "name": "Universiti Pendidikan Sultan Idris",
     "shortName": "UPSI",
-    "contributors": []
+     "integration": {
+      "exists": true,
+      "name": "MyUPSI Portal",
+      "url": "/institution/upsi"
+    },
+    "contributors": [
+      {
+        "name": "Nik Haiqal",
+        "github": "nkhqdotmy",
+        "role": "Author",
+        "avatar": "https://avatars.githubusercontent.com/nkhqdotmy"
+      }
+    ]
   },
   {
     "id": "usim",
