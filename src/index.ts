@@ -7,6 +7,7 @@ import { institutionsRoute } from "./routes/institutions/route";
 import { apuRoute } from "./institution/apu/route";
 import { uniklRoute } from "./institution/unikl/route";
 import { utmRoute } from "./institution/utm/route";
+import { upsiRoute } from "./institution/upsi/route";
 
 const app = new Hono();
 
@@ -16,6 +17,7 @@ app.route("/institution/uitm", uitmRoute);
 app.route("/institution/apu", apuRoute);
 app.route("/institution/unikl", uniklRoute);
 app.route("/institution/utm", utmRoute);
+app.route("/institution/upsi", upsiRoute);
 app.route("/contributors", contributorsRoute);
 app.route("/institutions", institutionsRoute);
 
