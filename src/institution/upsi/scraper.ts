@@ -34,82 +34,95 @@ function formatTime(time: string): string {
 }
 
 export class UpsiScraper {
+  private cookie = "";
+
+  private updateCookie(setCookie: string | null) {
+    if (!setCookie) return;
+
+    const newCookies = setCookie
+      .split(/,(?=[^;]+=[^;]+)/)
+      .map((c) => c.split(";")[0]);
+
+    const cookieMap = new Map<string, string>();
+
+    this.cookie.split("; ").forEach((c) => {
+      const [k, v] = c.split("=");
+      if (k && v) cookieMap.set(k, v);
+    });
+
+    newCookies.forEach((c) => {
+      const [k, v] = c.split("=");
+      if (k && v) cookieMap.set(k, v);
+    });
+
+    this.cookie = Array.from(cookieMap.entries())
+      .map(([k, v]) => `${k}=${v}`)
+      .join("; ");
+  }
   async scrape(studentId: string, password: string): Promise<SemesterCalendar[]> {
 
-  const loginRes = await fetch(
-    "https://unistudent.upsi.edu.my/auth/login",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        username: studentId,
-        password: password,
-      }),
-      redirect: "manual",
+    const loginRes = await fetch(
+      "https://unistudent.upsi.edu.my/auth/login",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          username: studentId,
+          password: password,
+        }),
+        redirect: "manual",
+      }
+    );
+
+    this.updateCookie(loginRes.headers.get("set-cookie"));
+
+    if (!this.cookie.includes("ci_session")) {
+      throw new Error("Login failed: Invalid credentials");
     }
-  );
 
-  const setCookie = loginRes.headers.get("set-cookie");
+    const viewRes = await fetch(
+      "https://unistudent.upsi.edu.my/timetable/timetable/view",
+      {
+        method: "GET",
+        headers: {
+          Cookie: this.cookie,
+        },
+      }
+    );
+    this.updateCookie(viewRes.headers.get("set-cookie"));
 
-  if (!setCookie || !setCookie.includes("ci_session")) {
-    throw new Error("Login failed: Invalid credentials");
-  }
+    const regRes = await fetch(
+      "https://unistudent.upsi.edu.my/timetable/timetable/getRegisteredCourse",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          Cookie: this.cookie,
+          "X-Requested-With": "XMLHttpRequest",
+          Referer: "https://unistudent.upsi.edu.my/timetable/timetable/view",
+        },
+        body: "",
+      }
+    );
+    this.updateCookie(regRes.headers.get("set-cookie"));
 
-  const cookie = setCookie.split(",").map(c => c.split(";")[0]).join("; ");
+    const res = await fetch(
+      "https://unistudent.upsi.edu.my/timetable/timetable/getMyTimetableQuery",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          Cookie: this.cookie,
+          "X-Requested-With": "XMLHttpRequest",
+          Referer: "https://unistudent.upsi.edu.my/timetable/timetable/view",
+        },
+        body: "type=LECT", 
+      }
+    );
 
-  await fetch(
-    "https://unistudent.upsi.edu.my/timetable/timetable/view",
-    {
-      method: "GET",
-      headers: {
-        Cookie: cookie,
-      },
-    }
-  );
-
-  await fetch(
-    "https://unistudent.upsi.edu.my/timetable/timetable/getMyTimetableQuery",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Cookie: cookie,
-        "X-Requested-With": "XMLHttpRequest",
-        Referer: "https://unistudent.upsi.edu.my/timetable/timetable/view",
-      },
-      body: "sem=&type=LECT",
-    }
-  );
-
-  await fetch(
-    "https://unistudent.upsi.edu.my/timetable/timetable/getRegisteredCourse",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Cookie: cookie,
-        "X-Requested-With": "XMLHttpRequest",
-        Referer: "https://unistudent.upsi.edu.my/timetable/timetable/view",
-      },
-      body: "sem=A252",
-    }
-  );
-
-  const res = await fetch(
-    "https://unistudent.upsi.edu.my/timetable/timetable/getMyTimetableQuery",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Cookie: cookie,
-        "X-Requested-With": "XMLHttpRequest",
-        Referer: "https://unistudent.upsi.edu.my/timetable/timetable/view",
-      },
-      body: "sem=A252&type=LECT",
-    }
-  );
+    this.updateCookie(res.headers.get("set-cookie"));
 
     if (!res.ok) {
       throw new Error("Failed to fetch timetable");
@@ -131,7 +144,6 @@ export class UpsiScraper {
       });
     }
 
-    
     const moduleMap = new Map<string, Schedule>();
 
     for (const item of data.timetable) {
@@ -176,7 +188,7 @@ export class UpsiScraper {
 
     return [
       {
-        title: "UPSI Semester A252",
+        title: "Current Semester",
         schedules: Array.from(moduleMap.values()),
       },
     ];
