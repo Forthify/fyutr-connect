@@ -42,6 +42,8 @@ interface TimeSlot {
   day: number; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   start: string; // "HH:MM" in 24-hour format, e.g. "08:00"
   end: string; // "HH:MM" in 24-hour format, e.g. "10:00"
+  instructor: string | null; // Lecturer name(s), or null if TBD
+  location: string | null; // Venue/room, or null if unknown
 }
 ```
 
@@ -55,8 +57,6 @@ interface Schedule {
   title: string; // Full subject name
   creditHours: number | null; // Credit hours, or null if unavailable
   section: string | number | null; // Class section/group identifier, or null
-  instructor: string | null; // Lecturer name(s), or null if TBD
-  location: string | null; // Venue/room, or null if unknown
   timeSlots: TimeSlot[]; // All weekly time slots for this subject
 }
 ```
@@ -102,11 +102,21 @@ class MyScraper {
           "title": "Introduction to Computing",
           "creditHours": 3,
           "section": 2,
-          "instructor": "Dr. Ahmad bin Ali",
-          "location": "Block A, Room 101",
           "timeSlots": [
-            { "day": 1, "start": "08:00", "end": "10:00" },
-            { "day": 3, "start": "08:00", "end": "10:00" }
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "10:00",
+              "instructor": "Dr. Ahmad bin Ali",
+              "location": "Block A, Room 101"
+            },
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "10:00",
+              "instructor": "Dr. Ahmad bin Ali",
+              "location": "Block A, Room 102"
+            }
           ]
         }
       ]

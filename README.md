@@ -90,11 +90,21 @@ Authenticate and retrieve a student's timetable.
             "title": "Introduction to Computing",
             "creditHours": 3,
             "section": 2,
-            "instructor": "Dr. Ahmad bin Ali",
-            "location": "Block A, Room 101",
             "timeSlots": [
-              { "day": 1, "start": "08:00", "end": "10:00" },
-              { "day": 3, "start": "08:00", "end": "10:00" }
+              {
+                "day": 1,
+                "start": "08:00",
+                "end": "10:00",
+                "instructor": "Dr. Ahmad bin Ali",
+                "location": "Block A, Room 101"
+              },
+              {
+                "day": 3,
+                "start": "08:00",
+                "end": "10:00",
+                "instructor": "Dr. Ahmad bin Ali",
+                "location": "Block A, Room 102"
+              }
             ]
           }
         ]

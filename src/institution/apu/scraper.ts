@@ -2,6 +2,8 @@ interface TimeSlot {
   day: number;
   start: string;
   end: string;
+  instructor: string | null;
+  location: string | null;
 }
 
 interface Schedule {
@@ -9,8 +11,6 @@ interface Schedule {
   title: string;
   creditHours: number | null;
   section: string | number | null;
-  instructor: string | null;
-  location: string | null;
   timeSlots: TimeSlot[];
 }
 
@@ -83,6 +83,10 @@ export class ApuScraper {
         day: dayNum,
         start: parseTime(entry.TIME_FROM),
         end: parseTime(entry.TIME_TO),
+        instructor: entry.NAME ?? null,
+        location: entry.ROOM
+          ? `${entry.LOCATION ?? ""}, ${entry.ROOM}`.replace(/^,\s*/, "")
+          : (entry.LOCATION ?? null),
       };
 
       if (moduleMap.has(code)) {
@@ -101,10 +105,6 @@ export class ApuScraper {
           title: entry.MODULE_NAME ?? "Unknown Module",
           creditHours: null,
           section: entry.GROUPING ?? null,
-          instructor: entry.NAME ?? null,
-          location: entry.ROOM
-            ? `${entry.LOCATION ?? ""}, ${entry.ROOM}`.replace(/^,\s*/, "")
-            : (entry.LOCATION ?? null),
           timeSlots: [slot],
         });
       }

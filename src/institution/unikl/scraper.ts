@@ -2,6 +2,8 @@ export interface TimeSlot {
   day: number;
   start: string;
   end: string;
+  instructor: string | null;
+  location: string | null;
 }
 
 export interface Schedule {
@@ -9,8 +11,6 @@ export interface Schedule {
   title: string;
   creditHours: number | null;
   section: string;
-  instructor: string;
-  location: string;
   timeSlots: TimeSlot[];
 }
 
@@ -236,8 +236,6 @@ export class UniKLScraper {
               title: code, // UniKL HTML doesn't include Subject Title, so we fallback to code
               creditHours: null,
               section: section,
-              instructor: instructor,
-              location: location,
               timeSlots: []
             });
           }
@@ -253,7 +251,7 @@ export class UniKLScraper {
           // Find a slot to merge into. They must be on the same day, same location for the same course.
           // The new slot's start time should be >= the existing slot's start time and <= existing slot's end time + 30 mins
           const existingSlot = sched.timeSlots.find(t => {
-            if (t.day !== dayIndex || sched.location !== location) return false;
+            if (t.day !== dayIndex || t.location !== location) return false;
             const existingEndMins = parseTimeMinutes(t.end);
             const newStartMins = parseTimeMinutes(slot.start);
             // Allow merge if it's literally touching or within a 30 minute padding gap
@@ -271,7 +269,9 @@ export class UniKLScraper {
             sched.timeSlots.push({
               day: dayIndex,
               start: slot.start,
-              end: slot.end
+              end: slot.end,
+              instructor: instructor,
+              location: location,
             });
           }
         }

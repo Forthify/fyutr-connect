@@ -2,6 +2,8 @@ interface TimeSlot {
   day: number;
   start: string;
   end: string;
+  instructor: string | null;
+  location: string | null;
 }
 
 interface Schedule {
@@ -9,8 +11,6 @@ interface Schedule {
   title: string;
   creditHours: number | null;
   section: string | number | null;
-  instructor: string | null;
-  location: string | null;
   timeSlots: TimeSlot[];
 }
 
@@ -81,8 +81,6 @@ export class UpsiScraper {
     if (!this.cookie.includes("ci_session")) {
       throw new Error("Login failed: Invalid credentials");
     }
-  );
-
     const viewRes = await fetch(
       "https://unistudent.upsi.edu.my/timetable/timetable/view",
       {
@@ -159,6 +157,8 @@ export class UpsiScraper {
         day: DAY_MAP[item.DAY],
         start: startSlot.start,
         end: endSlot.end,
+        instructor: item.LECTURER ?? null,
+        location: item.ROOM ?? null,
       };
 
       if (moduleMap.has(code)) {
@@ -180,8 +180,6 @@ export class UpsiScraper {
           title: item.SUBJECT_NAME ?? "Unknown",
           creditHours: null,
           section: item.GROUP ?? null,
-          instructor: item.LECTURER ?? null,
-          location: item.ROOM ?? null,
           timeSlots: [timeSlot],
         });
       }

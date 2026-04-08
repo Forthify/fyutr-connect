@@ -2,6 +2,8 @@ export interface TimeSlot {
   day: number;
   start: string;
   end: string;
+  instructor: string | null;
+  location: string | null;
 }
 
 export interface Schedule {
@@ -9,8 +11,6 @@ export interface Schedule {
   title: string;
   creditHours: number | null;
   section: number | null;
-  instructor: string | null;
-  location: string | null;
   timeSlots: TimeSlot[];
 }
 
@@ -464,10 +464,9 @@ export class IICScraper {
               day,
               start: this.parseTime(startStr),
               end: this.parseTime(endStr),
+              instructor: instructor || null,
+              location: room || null,
             });
-            if (room && !location.includes(room)) {
-              location = location ? `${location}, ${room}` : room;
-            }
           }
         }
       }
@@ -477,9 +476,7 @@ export class IICScraper {
           code,
           title: title || "",
           creditHours: isNaN(creditHours) ? null : creditHours,
-          section: null, // Scraper doesn't explicitly show section in this structure
-          instructor: instructor || null,
-          location: location || null,
+          section: null,
           timeSlots,
         });
       }

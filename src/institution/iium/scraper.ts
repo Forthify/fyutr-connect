@@ -4,6 +4,8 @@ export interface TimeSlot {
   day: number;
   start: string;
   end: string;
+  instructor: string | null;
+  location: string | null;
 }
 
 export interface Schedule {
@@ -11,8 +13,6 @@ export interface Schedule {
   title: string;
   creditHours: number | null;
   section: number | null;
-  instructor: string | null;
-  location: string | null;
   timeSlots: TimeSlot[];
 }
 
@@ -379,6 +379,8 @@ export class IIUMScraper {
                 day,
                 start: this.parseTime(start),
                 end: this.parseTime(end),
+                instructor: lecturer === "TO BE DETERMINED" ? null : lecturer,
+                location: venue || null,
               });
             });
           }
@@ -389,8 +391,6 @@ export class IIUMScraper {
           title,
           section: isNaN(sect) ? null : sect,
           creditHours: isNaN(chr) ? null : chr,
-          instructor: lecturer === "TO BE DETERMINED" ? null : lecturer,
-          location: venue || null,
           timeSlots,
         });
       } else if (cells.length === 4 && schedules.length > 0) {
@@ -406,22 +406,10 @@ export class IIUMScraper {
                 day,
                 start: this.parseTime(start),
                 end: this.parseTime(end),
+                instructor: lecturer === "TO BE DETERMINED" ? null : lecturer,
+                location: venue || null,
               });
             });
-          }
-        }
-
-        if (venue && last.location && !last.location.includes(venue)) {
-          last.location += `, ${venue}`;
-        } else if (venue && !last.location) {
-          last.location = venue;
-        }
-
-        if (lecturer && lecturer !== "TO BE DETERMINED") {
-          if (last.instructor && !last.instructor.includes(lecturer)) {
-            last.instructor += `, ${lecturer}`;
-          } else if (!last.instructor) {
-            last.instructor = lecturer;
           }
         }
       }

@@ -2,6 +2,8 @@ export interface TimeSlot {
   day: number;
   start: string;
   end: string;
+  instructor?: string | null;
+  location?: string | null;
 }
 
 export interface Schedule {
@@ -9,8 +11,6 @@ export interface Schedule {
   title: string;
   creditHours: number | null;
   section: string | number | null;
-  instructor: string | null;
-  location: string | null;
   timeSlots: TimeSlot[];
 }
 
@@ -162,10 +162,10 @@ function extractTeacherName(rowText: string): string | null {
 function mergeTimeSlot(
   schedule: Schedule,
   day: number,
-  slot: { start: string; end: string },
+  slot: { start: string; end: string; instructor?: string | null; location?: string | null },
 ) {
   const existing = schedule.timeSlots.find((timeSlot) => {
-    if (timeSlot.day !== day) return false;
+    if (timeSlot.day !== day || timeSlot.location !== slot.location) return false;
     const gap = toMinutes(slot.start) - toMinutes(timeSlot.end);
     return gap >= 0 && gap <= 10;
   });
@@ -183,7 +183,13 @@ function mergeTimeSlot(
         timeSlot.end === slot.end,
     )
   ) {
-    schedule.timeSlots.push({ day, start: slot.start, end: slot.end });
+    schedule.timeSlots.push({
+      day,
+      start: slot.start,
+      end: slot.end,
+      instructor: slot.instructor ?? null,
+      location: slot.location ?? null,
+    });
   }
 }
 
@@ -358,8 +364,6 @@ export class UTMScraper {
         title: course.name || timetableMatch?.title || course.code,
         creditHours: timetableMatch?.creditHours ?? null,
         section: timetableMatch?.section ?? null,
-        instructor: timetableMatch?.instructor ?? null,
-        location: timetableMatch?.location ?? null,
         timeSlots: timetableMatch?.timeSlots ?? [],
       };
     });
@@ -591,11 +595,14 @@ export class UTMScraper {
             `${course.shortname ?? ""} ${course.fullname ?? ""}`,
           );
           const schedule = code ? scheduleByCode.get(code) : null;
-          if (!code || !schedule || schedule.instructor) continue;
+          if (!code || !schedule || schedule.timeSlots.some(s => s.instructor)) continue;
 
           const name = course.contacts?.[0]?.fullname;
           if (name) {
-            schedule.instructor = normalizeName(name);
+            const normalized = normalizeName(name);
+            schedule.timeSlots.forEach((slot) => {
+              slot.instructor = normalized;
+            });
           } else {
             fallback.set(course.id, schedule);
           }
@@ -612,9 +619,12 @@ export class UTMScraper {
                 })
               ).text();
               const name = rows(html)
-                .map(extractTeacherName)
                 .find((value): value is string => Boolean(value));
-              if (name) schedule.instructor = name;
+              if (name) {
+                schedule.timeSlots.forEach((slot) => {
+                  slot.instructor = name;
+                });
+              }
             } catch {
               /* skip */
             } finally {
@@ -656,8 +666,6 @@ export class UTMScraper {
               title,
               creditHours: parseFloat(creditHours) || null,
               section,
-              instructor: null,
-              location: null,
               timeSlots: [],
             },
           ]
@@ -731,14 +739,11 @@ export class UTMScraper {
             title: code,
             creditHours: null,
             section,
-            instructor: null,
-            location,
             timeSlots: [],
           };
 
         if (!schedules.has(key)) schedules.set(key, schedule);
-        mergeTimeSlot(schedule, day, slot);
-        if (location && !schedule.location) schedule.location = location;
+        mergeTimeSlot(schedule, day, { ...slot, location });
       });
     }
 
