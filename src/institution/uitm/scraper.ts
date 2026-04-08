@@ -2,6 +2,8 @@ export interface TimeSlot {
   day: number;
   start: string;
   end: string;
+  instructor?: string | null;
+  location?: string | null;
 }
 
 export interface Schedule {
@@ -9,8 +11,6 @@ export interface Schedule {
   title: string;
   creditHours: number | null;
   section: string | number | null;
-  instructor: string | null;
-  location: string | null;
   timeSlots: TimeSlot[];
 }
 
@@ -101,19 +101,28 @@ export class UiTMScraper {
           day: dayIndex,
           start: startStr,
           end: endStr,
+          instructor: item.lecturer || null,
+          location: item.bilik || null,
         };
 
         if (schedulesMap.has(uniqueKey)) {
-          // If we already added this course+section, just push the new timeslot (check for dupes if needed)
           const existing = schedulesMap.get(uniqueKey)!;
-          // Verify we aren't adding the exact same day/time (since they can duplicate across weeks in the JSON)
-          const isDuplicate = existing.timeSlots.some(
+          // Find if we already have this specific day/time slot
+          const existingSlotIndex = existing.timeSlots.findIndex(
             (t) =>
               t.day === newTimeSlot.day &&
               t.start === newTimeSlot.start &&
               t.end === newTimeSlot.end,
           );
-          if (!isDuplicate) {
+
+          if (existingSlotIndex > -1) {
+            // Update existing slot with latest data (instructor/location)
+            existing.timeSlots[existingSlotIndex] = {
+              ...existing.timeSlots[existingSlotIndex],
+              instructor: newTimeSlot.instructor || existing.timeSlots[existingSlotIndex].instructor,
+              location: newTimeSlot.location || existing.timeSlots[existingSlotIndex].location,
+            };
+          } else {
             existing.timeSlots.push(newTimeSlot);
           }
         } else {
@@ -123,8 +132,6 @@ export class UiTMScraper {
             title: item.course_desc || "",
             creditHours: null,
             section: item.groups || null,
-            instructor: item.lecturer || null,
-            location: item.bilik || null,
             timeSlots: [newTimeSlot],
           });
         }
