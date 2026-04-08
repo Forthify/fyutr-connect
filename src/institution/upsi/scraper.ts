@@ -81,6 +81,7 @@ export class UpsiScraper {
     if (!this.cookie.includes("ci_session")) {
       throw new Error("Login failed: Invalid credentials");
     }
+  );
 
     const viewRes = await fetch(
       "https://unistudent.upsi.edu.my/timetable/timetable/view",
