@@ -117,7 +117,7 @@ export class UpsiScraper {
           "X-Requested-With": "XMLHttpRequest",
           Referer: "https://unistudent.upsi.edu.my/timetable/timetable/view",
         },
-        body: "type=LECT", 
+        body: "sem=&type=LECT", 
       }
     );
 
@@ -143,47 +143,51 @@ export class UpsiScraper {
       });
     }
 
-    const moduleMap = new Map<string, Schedule>();
+const grouped = new Map<string, any[]>();
 
-    for (const item of data.timetable) {
-      const code = item.SUBJECT ?? "UNKNOWN";
+for (const item of data.timetable) {
+  const key = `${item.TT_SUBJECT_CODE}_${item.DAY_NO}_${item.TT_GROUP}`;
 
-      const startSlot = slotMap.get(item.SLOT_FROM);
-      const endSlot = slotMap.get(item.SLOT_TO);
+  if (!grouped.has(key)) grouped.set(key, []);
+  grouped.get(key)!.push(item);
+}
 
-      if (!startSlot || !endSlot) continue;
+const moduleMap = new Map<string, Schedule>();
 
-      const timeSlot: TimeSlot = {
-        day: DAY_MAP[item.DAY],
-        start: startSlot.start,
-        end: endSlot.end,
-        instructor: item.LECTURER ?? null,
-        location: item.ROOM ?? null,
-      };
+for (const entries of grouped.values()) {
+  // sort slots ascending
+  entries.sort((a, b) => Number(a.TT_SLOT) - Number(b.TT_SLOT));
 
-      if (moduleMap.has(code)) {
-        const existing = moduleMap.get(code)!;
+  const first = entries[0];
+  const last = entries[entries.length - 1];
 
-        const duplicate = existing.timeSlots.some(
-          (s) =>
-            s.day === timeSlot.day &&
-            s.start === timeSlot.start &&
-            s.end === timeSlot.end
-        );
+  const startSlot = slotMap.get(first.TT_SLOT);
+  const endSlot = slotMap.get(last.TT_SLOT);
 
-        if (!duplicate) {
-          existing.timeSlots.push(timeSlot);
-        }
-      } else {
-        moduleMap.set(code, {
-          code,
-          title: item.SUBJECT_NAME ?? "Unknown",
-          creditHours: null,
-          section: item.GROUP ?? null,
-          timeSlots: [timeSlot],
-        });
-      }
-    }
+  if (!startSlot || !endSlot) continue;
+
+  const code = first.TT_SUBJECT_CODE;
+
+  const timeSlot: TimeSlot = {
+    day: Number(first.DAY_NO) % 7, // UPSI 1–7 → Fyutr 0–6
+    start: startSlot.start,
+    end: endSlot.end,
+    instructor: null, // UPSI doesn't provide lecturer here
+    location: first.TT_ROOM_CODE ?? null,
+  };
+
+  if (moduleMap.has(code)) {
+    moduleMap.get(code)!.timeSlots.push(timeSlot);
+  } else {
+    moduleMap.set(code, {
+      code,
+      title: code, 
+      creditHours: null,
+      section: first.TT_GROUP ?? null,
+      timeSlots: [timeSlot],
+    });
+  }
+}
 
     return [
       {
