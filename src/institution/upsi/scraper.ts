@@ -92,6 +92,15 @@ export class UpsiScraper {
     );
     this.updateCookie(viewRes.headers.get("set-cookie"));
 
+    const viewHtml = await viewRes.text();
+
+    const semMatch = viewHtml.match(/\[([A-Z0-9]+)\]/);
+    const sem = semMatch ? semMatch[1] : "";
+    
+    if (!sem) {
+      throw new Error("Login failed: Cannot detect semester");
+    }
+
     const regRes = await fetch(
       "https://unistudent.upsi.edu.my/timetable/timetable/getRegisteredCourse",
       {
@@ -117,7 +126,7 @@ export class UpsiScraper {
           "X-Requested-With": "XMLHttpRequest",
           Referer: "https://unistudent.upsi.edu.my/timetable/timetable/view",
         },
-        body: "sem=&type=LECT", 
+        body: `sem=${sem}&type=LECT`, 
       }
     );
 
